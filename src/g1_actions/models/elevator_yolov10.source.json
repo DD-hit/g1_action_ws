@@ -1,0 +1,13 @@
+{
+  "repository": "https://github.com/isharadilshanra/YOLOv10-Elevator-Button-Detection",
+  "commit": "0f7f141c0639fcfbb32ed9655c7135ae147fa1c3",
+  "source_path": "trained-best-yolov10-weights/best.pt",
+  "git_blob_sha1": "af075e28ec68534e88cea7c741f8fb2ef5a8397a",
+  "sha256": "5dfdf0871ce8e5a064f0cb71a8a59cd35d3887c6251b92029f5e7f49b068414a",
+  "size_bytes": 17104016,
+  "selected_classes": {
+    "265": "down",
+    "366": "up"
+  },
+  "note": "Original 368-class weights; runtime retains only exact up/down arrow classes."
+}

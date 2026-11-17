@@ -1,0 +1,44 @@
+uint16 SUCCEEDED=0
+uint16 INVALID_ARGUMENT=10
+uint16 UNKNOWN_ACTION=11
+uint16 NOT_READY=12
+uint16 BUSY=13
+uint16 DUPLICATE_REQUEST=14
+uint16 NOT_IMPLEMENTED=15
+uint16 UNSUPPORTED_VERSION=16
+uint16 TARGET_TIMEOUT=20
+uint16 TARGET_INVALID=21
+uint16 TARGET_LOST=22
+uint16 PLANNING_FAILED=30
+uint16 COLLISION=31
+uint16 JOINT_LIMIT=32
+uint16 TRACKING_ERROR=33
+uint16 EFFECT_VERIFICATION_FAILED=34
+uint16 CANCELLED=40
+uint16 DEADLINE_EXCEEDED=41
+uint16 DRIVER_ERROR=50
+uint16 AUTHORITY_ERROR=51
+uint16 CLEANUP_FAILED=52
+uint16 INTERNAL_ERROR=99
+uint8 AUTHORITY_UNKNOWN=0
+uint8 AUTHORITY_NOT_ACQUIRED=1
+uint8 AUTHORITY_ACQUIRED=2
+uint8 AUTHORITY_RELEASING=3
+uint8 AUTHORITY_RELEASED=4
+uint8 AUTHORITY_RETAINED=5
+uint8 EFFECT_UNVERIFIED=0
+uint8 EFFECT_VERIFIED=1
+uint8 EFFECT_FAILED=2
+string request_id
+string action_name
+bool success false
+uint16 code 99
+uint8 selected_arm 0
+string failed_stage
+string message
+float64 elapsed_s
+bool motion_completed false
+bool cleanup_completed false
+uint8 authority_state 0
+uint8 effect_verification 0
+string details_json "{}"

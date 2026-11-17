@@ -1,0 +1,20 @@
+{
+  "left": {
+    "source": "left_rubber_hand.STL",
+    "collision": "left_rubber_hand_collision.STL",
+    "triangles": 6364,
+    "source_vertices": 22876,
+    "max_vertex_outside_m": 1.814816812253406e-15,
+    "hull_volume_m3": 0.0003757078004014343,
+    "box_volume_m3": 0.0009342704379026356
+  },
+  "right": {
+    "source": "right_rubber_hand.STL",
+    "collision": "right_rubber_hand_collision.STL",
+    "triangles": 5930,
+    "source_vertices": 21928,
+    "max_vertex_outside_m": 1.1102230246251565e-16,
+    "hull_volume_m3": 0.00037571980786257105,
+    "box_volume_m3": 0.000934261776298113
+  }
+}

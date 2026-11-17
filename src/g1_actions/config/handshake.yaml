@@ -1,0 +1,21 @@
+# Draft only. No motion or detector is enabled by this configuration.
+enabled: false
+perception:
+  backend: mediapipe
+  input_mode: recorded_video
+  video_path: null
+  camera_intrinsics: null
+  aligned_depth_path: null
+  depth_scale_m: null
+frames:
+  robot_base: torso_link
+  camera_optical: null
+  palm_normal_axis: '+Z'
+  tangent_convention: pending_video_validation
+tool:
+  arm: right
+  reference: rubber_hand_center
+  wrist_to_center_xyz_m: null
+  wrist_to_center_rotation: null
+execution:
+  enabled: false

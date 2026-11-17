@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "g1_actions/v1/handshake",
+  "title": "HandshakeParameters",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "subject_handedness": {
+      "type": "string",
+      "enum": [
+        "any",
+        "left",
+        "right"
+      ],
+      "default": "any"
+    },
+    "hold_s": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 3,
+      "default": 1
+    }
+  }
+}

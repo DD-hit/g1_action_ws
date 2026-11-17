@@ -1,0 +1,13 @@
+api_version: 1
+actions:
+  elevator:
+    module: g1_actions.actions.elevator
+    parameter_schema: schemas/elevator.schema.json
+    implementation_status: integrated
+    unified_adapter_implemented: true
+    directions: [up, down]
+  handshake:
+    module: g1_actions.actions.handshake
+    parameter_schema: schemas/handshake.schema.json
+    implementation_status: scaffold
+    unified_adapter_implemented: false

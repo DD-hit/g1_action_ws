@@ -1,0 +1,5 @@
+uint16 api_version 1
+---
+bool success
+string message
+g1_action_interfaces/ActionInfo[] actions

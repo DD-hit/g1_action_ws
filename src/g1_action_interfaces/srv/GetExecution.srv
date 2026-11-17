@@ -1,0 +1,7 @@
+string request_id
+---
+bool found
+bool terminal
+string message
+g1_action_interfaces/ExecutionFeedback feedback
+g1_action_interfaces/ExecutionResult result

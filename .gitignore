@@ -1,0 +1,14 @@
+/build/
+/install/
+/log/
+/data/
+__pycache__/
+*.py[cod]
+*.engine
+*.so
+*.bak
+*.before_*
+.DS_Store
+._*
+
+/src/g1_actions/data/

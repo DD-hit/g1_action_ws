@@ -1,0 +1,6 @@
+# Empty means the currently active execution; explicit IDs are preferred.
+string request_id
+---
+bool accepted
+string request_id
+string message
