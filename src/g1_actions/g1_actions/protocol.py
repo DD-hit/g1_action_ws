@@ -10,6 +10,8 @@ ARM_IDS = {value: key for key, value in ARMS.items()}
 STAGES = {
     'STARTING': 'VALIDATING', 'WAITING_TARGET': 'WAITING_TARGET',
     'ACQUIRE_AUTHORITY': 'ACQUIRING_AUTHORITY', 'APPROACH': 'APPROACHING',
+    'RETURN': 'RETURNING', 'approach': 'APPROACHING', 'hold': 'CONTACT_HOLD',
+    'return': 'RETURNING', 'read_state': 'PLANNING', 'preflight': 'PLANNING', 'waiting_target': 'WAITING_TARGET', 'acquire_authority': 'ACQUIRING_AUTHORITY',
     'PRESS': 'PRESSING', 'DWELL': 'CONTACT_HOLD', 'WITHDRAW': 'WITHDRAWING',
     'RECOVERY_WITHDRAW': 'RECOVERING', 'RECOVERY_RETURN': 'RECOVERING',
     'STOPPING': 'CANCELLING', 'READY_TO_RELEASE': 'RELEASING_AUTHORITY',
@@ -69,12 +71,12 @@ def validate(request):
             if set(params) - {'subject_handedness', 'hold_s'}:
                 raise ValueError('握手参数包含未知字段')
             params.setdefault('subject_handedness', 'any')
-            params.setdefault('hold_s', 1.)
+            params.setdefault('hold_s', 4.)
             hold = params['hold_s']
             if params['subject_handedness'] not in ('any', 'left', 'right'):
                 raise ValueError('subject_handedness 必须为 any/left/right')
-            if isinstance(hold, bool) or not isinstance(hold, (int, float)) or not math.isfinite(hold) or not 0 <= hold <= 3:
-                raise ValueError('hold_s 必须为 0～3 s')
+            if isinstance(hold, bool) or not isinstance(hold, (int, float)) or not math.isfinite(hold) or not 0 <= hold <= 10:
+                raise ValueError('hold_s 必须为 0～10 s')
     except (ValueError, TypeError, KeyError) as error:
         raise InvalidRequest(Result.INVALID_ARGUMENT, str(error))
     return params
@@ -93,6 +95,10 @@ def make_result(request, code, message, elapsed=0.):
 def failure_code(raw):
     reason = str(raw.get('reason', ''))
     lower = reason.lower()
+    if raw.get('target_rejected'):
+        return Result.PLANNING_FAILED
+    if raw.get('failed_stage') == 'waiting_target':
+        return Result.TARGET_TIMEOUT
     if raw.get('result') == 'stopped':
         return Result.CANCELLED
     if 'ELEVATOR_CONTACT_UNREACHABLE:' in reason and 'PILZ_PATH_COLLISION:' not in reason:

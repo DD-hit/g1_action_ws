@@ -22,7 +22,7 @@ export ELE_CAMERA_OUTPUT_FPS=${ELE_CAMERA_OUTPUT_FPS:-6}
 command=${1:-serve}
 if (( $# )); then shift; fi
 case "$command" in
-  serve) exec python3 "${ROOT}/scripts/serve.py" --direction "${1:-up}" --arm "${2:-auto}" ;;
+  serve) exec bash "${ACTION_WS}/scripts/serve.sh" --direction "${1:-up}" --arm "${2:-auto}" ;;
   up|down) exec python3 "${ROOT}/scripts/service_command.py" start "$command" "$@" ;;
   start) exec python3 "${ROOT}/scripts/service_command.py" start "$@" ;;
   stop) exec python3 "${ROOT}/scripts/service_command.py" stop "$@" ;;
@@ -65,7 +65,7 @@ case "$command" in
   press) exec ros2 run g1_actions elevator_press --direction "${1:-up}" --arm "${2:-auto}" --execute ;;
   hover) exec ros2 run g1_actions elevator_press --direction "${1:-up}" --arm "${2:-auto}" --execute --hover-only ;;
   driver)
-    export CONFIG_FILE="${ELE_ELEVATOR_CONFIG}"
+    export CONFIG_FILE="${G1_ROBOT_CONFIG:-${ROOT}/config/robot.yaml}"
     exec bash "${ACTION_WS}/../brsd_manipulation/src/brsd_upbody_control/script/run_driver.sh" unitree_g1 "${1:-fake}" ;;
   check) exec python3 "${ROOT}/scripts/check_runtime.py" "$@" ;;
   height-check) exec env PYTHONPATH="${ROOT}:${PYTHONPATH:-}" python3 -m g1_actions.actions.elevator.height_check "$@" ;;

@@ -16,8 +16,8 @@ def load(path=None):
     path = Path(path or os.environ.get('ELE_ELEVATOR_CONFIG', share() / 'config/elevator.yaml'))
     config = yaml.safe_load(path.read_text())
     config['_config_path'] = str(path.resolve())
-    # The driver consumes the same action file; avoid a second editable path.
-    config['motion']['driver_config'] = config['_config_path']
+    # Shared hardware profile is independent of the selected action.
+    config['motion']['driver_config'] = str(path.parent / 'robot.yaml')
     config['_share'] = str(share())
     return config
 

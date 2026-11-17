@@ -9,5 +9,5 @@ actions:
   handshake:
     module: g1_actions.actions.handshake
     parameter_schema: schemas/handshake.schema.json
-    implementation_status: scaffold
-    unified_adapter_implemented: false
+    implementation_status: integrated
+    unified_adapter_implemented: true

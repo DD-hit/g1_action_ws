@@ -1,0 +1,6 @@
+# Jetson GPU and macOS CPU use separately validated versions.
+mediapipe==1.0.1; sys_platform == "linux"
+mediapipe==1.2.3; sys_platform != "linux"
+opencv-contrib-python==5.0.0.93
+PyYAML==6.0.3
+imageio-ffmpeg==0.8.1

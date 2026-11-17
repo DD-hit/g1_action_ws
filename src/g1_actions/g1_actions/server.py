@@ -52,9 +52,11 @@ class Completion:
 
 
 class ActionLibraryServer(Node):
-    def __init__(self, backend, cleanup_timeout_s=10., log_path=None):
+    def __init__(self, backend, cleanup_timeout_s=10., log_path=None, providers=None):
         super().__init__('g1_action_server')
         self.backend = backend
+        self.providers = dict(providers or {})
+        self.providers["elevator"] = backend
         self.cleanup_timeout_s = cleanup_timeout_s
         self.mutex = threading.RLock()
         self.executions = {}
@@ -78,19 +80,23 @@ class ActionLibraryServer(Node):
         self.timer = self.create_timer(.2, self.tick)
         backend.start_guard = self.legacy_start
         backend.stop_guard = self.legacy_stop
-        backend.action_event_callback = self.observe
+        for name, provider in self.providers.items():
+            provider.action_event_callback = lambda event, name=name: self.observe(event, name)
 
-    def observe(self, event):
+    def observe(self, event, action_name="elevator"):
         with self.mutex:
             record = self.active
-            if record is None or record.result is not None:
+            if record is None or record.result is not None or record.request.action_name != action_name:
                 return
             stage = event['stage']
             if stage in ('MOTION_ACCEPTED', 'MOTION_REACHED'):
                 stage = event.get('motion_stage', '')
             stage = {'CONTACT_STARTED': 'PRESS', 'CONTACT_TIME_LIMIT': 'PRESS',
                      'WITHDRAW_VERIFIED': 'WITHDRAW', 'TARGET_LOCKED': 'PLANNING',
-                     'PREVIEW': 'PLANNING', 'TASK_FINISHED': 'FINALIZING'}.get(stage, stage)
+                     'PREVIEW': 'PLANNING', 'TASK_FINISHED': 'FINALIZING',
+                     'ARM_SELECTED': 'PLANNING', 'FIXED_FALLBACK': 'PLANNING',
+                     'PREFLIGHT_STAGE': 'PLANNING', 'PREFLIGHT_PASSED': 'PLANNING',
+                     'HOLD': 'DWELL', 'RETURN': 'RETURN'}.get(stage, stage)
             if stage in STAGES or stage in ('PLANNING', 'FINALIZING'):
                 feedback = self.feedback(record, STAGES.get(stage, stage))
                 if record.feedback is None or record.feedback.stage != feedback.stage:
@@ -100,7 +106,7 @@ class ActionLibraryServer(Node):
                     record.handle.publish_feedback(Execute.Feedback(feedback=feedback))
 
     def feedback(self, record, stage):
-        task = self.backend.task
+        task = self.provider(record).task
         arm = ARM_IDS.get(getattr(task, 'arm', ''), record.request.arm)
         acquired = getattr(task, 'acquired', False)
         record.ever_acquired |= acquired
@@ -126,6 +132,9 @@ class ActionLibraryServer(Node):
             except OSError as error:
                 self.get_logger().error('写入动作日志失败：' + str(error))
 
+    def provider(self, record):
+        return self.providers.get(record.request.action_name, self.backend)
+
     def claim(self, request, handle=None):
         params = validate(request)
         now = time.monotonic()
@@ -135,7 +144,7 @@ class ActionLibraryServer(Node):
                 raise InvalidRequest(Result.DUPLICATE_REQUEST, '请求 ID 已存在，请用 get_execution 查询；不会重复运动')
             if self.closed or self.fault:
                 raise InvalidRequest(Result.NOT_READY, self.fault or '服务正在退出')
-            if self.active is not None or self.backend.worker is not None:
+            if self.active is not None or any(p.worker is not None for p in self.providers.values()):
                 raise InvalidRequest(Result.BUSY, '已有动作执行中；请等待结束或 stop')
             record = Execution(copy.deepcopy(request), now, Future(executor=self.executor), handle=handle)
             record.feedback = self.feedback(record, 'VALIDATING')
@@ -188,17 +197,20 @@ class ActionLibraryServer(Node):
 
     def begin(self, record, params, legacy_completion=None):
         record.legacy_completion = legacy_completion
-        if record.request.action_name != 'elevator':
-            self.finish(record, make_result(record.request, Result.NOT_IMPLEMENTED, '握手动作尚未实现'))
-            return False, '握手动作尚未实现'
+        if record.request.action_name not in self.providers:
+            self.finish(record, make_result(record.request, Result.NOT_IMPLEMENTED, '动作提供者未加载'))
+            return False, '动作提供者未加载'
         if record.cancel_requested or (record.handle is not None and record.handle.is_cancel_requested):
             self.finish(record, make_result(record.request, Result.CANCELLED, '任务开始前已取消'))
             return False, '任务开始前已取消'
         with self.mutex:
-            answer = self.backend._start_impl(
-                Trigger.Request(), Trigger.Response(),
-                Completion(lambda raw: self.raw_complete(record, raw, legacy_completion)),
-                direction=params['direction'], arm=ARMS[record.request.arm])
+            completion = Completion(lambda raw: self.raw_complete(record, raw, legacy_completion))
+            if record.request.action_name == 'elevator':
+                answer = self.backend._start_impl(Trigger.Request(), Trigger.Response(), completion,
+                    direction=params['direction'], arm=ARMS[record.request.arm])
+            else:
+                success, message = self.provider(record).start(ARMS[record.request.arm], params, completion, request_id=record.request.request_id)
+                answer = Trigger.Response(success=success, message=message)
             if answer.success:
                 record.started = True
             else:
@@ -221,7 +233,7 @@ class ActionLibraryServer(Node):
             self.begin(record, params)
         except Exception as error:
             # A start exception must not unlock a still-running backend.
-            if self.backend.worker is not None:
+            if self.provider(record).worker is not None:
                 self.request_stop(record)
                 result = make_result(request, Result.CLEANUP_FAILED, '启动异常，需确认后台收尾：' + str(error))
                 result.cleanup_completed = False
@@ -252,8 +264,8 @@ class ActionLibraryServer(Node):
         try:
             accepted, message = self.begin(record, params, completion)
         except Exception as error:
-            result = make_result(goal, Result.CLEANUP_FAILED if self.backend.worker is not None else Result.INTERNAL_ERROR, str(error))
-            if self.backend.worker is not None:
+            result = make_result(goal, Result.CLEANUP_FAILED if self.provider(record).worker is not None else Result.INTERNAL_ERROR, str(error))
+            if self.provider(record).worker is not None:
                 self.request_stop(record)
                 result.cleanup_completed = False
                 result.authority_state = Result.AUTHORITY_UNKNOWN
@@ -272,9 +284,9 @@ class ActionLibraryServer(Node):
             if not record.cancel_started:
                 record.cancel_started = time.monotonic()
             if first:
-                self.backend._stop_impl(Trigger.Request(), Trigger.Response())
+                self.provider(record)._stop_impl(Trigger.Request(), Trigger.Response())
             if record.deadline_exceeded:
-                self.backend.stop_event.reason = '动作执行超时'
+                self.provider(record).stop_event.reason = '动作执行超时'
             if record.handle is not None and not record.transport_cancel_sent:
                 record.transport_cancel_sent = True
                 request = CancelGoal.Request()
@@ -330,14 +342,16 @@ class ActionLibraryServer(Node):
         if request.api_version != 1:
             response.message = '只支持 API v1'
             return response
-        ready = self.backend.refresh_readiness() and not self.closed and not self.fault and self.active is None
+        idle = not self.closed and not self.fault and self.active is None
         share = Path(get_package_share_directory('g1_actions'))
         for name, description in [('elevator', '上下行电梯按钮按压'), ('handshake', '握手')]:
+            provider = self.providers.get(name)
+            ready = bool(provider and provider.refresh_readiness() and idle)
             info = ActionInfo(name=name, api_version=1, description=description,
-                              implemented=name == 'elevator', ready=bool(ready and name == 'elevator'),
-                              supported_arms=[0, 1, 2] if name == 'elevator' else [],
+                              implemented=provider is not None, ready=ready,
+                              supported_arms=[0, 1, 2] if provider else [],
                               parameter_schema_json=(share / 'schemas' / (name + '.schema.json')).read_text())
-            info.unavailable_reason = ('' if info.ready else self.fault or ('已有任务执行中' if self.active else self.backend.dependency_error)) if info.implemented else '尚未实现'
+            info.unavailable_reason = ('' if info.ready else self.fault or ('已有任务执行中' if self.active else provider.dependency_error)) if info.implemented else '尚未实现'
             response.actions.append(info)
         response.success = True
         return response
@@ -367,15 +381,17 @@ class ActionLibraryServer(Node):
             status = ServerStatus()
             status.header.stamp = self.get_clock().now().to_msg()
             status.state = ServerStatus.FAULT if self.fault else ServerStatus.CANCELLING if record and record.cancel_requested else ServerStatus.RUNNING if record else ServerStatus.IDLE
-            status.accepting_goals = bool(not self.closed and not self.fault and record is None and self.backend.worker is None and self.backend.ready)
-            status.message = self.fault or self.backend.dependency_error
+            available = [p.refresh_readiness() for p in self.providers.values()]
+            ready = any(available)
+            status.accepting_goals = bool(not self.closed and not self.fault and record is None and all(p.worker is None for p in self.providers.values()) and ready)
+            status.message = self.fault or "；".join(name+"："+p.dependency_error for name,p in self.providers.items() if p.dependency_error)
             if record:
                 status.active_request_id = record.request.request_id
                 status.active_action_name = record.request.action_name
                 status.stage = record.feedback.stage
                 status.authority_state = record.feedback.authority_state
             else:
-                status.stage = 'FAULT' if self.fault else 'READY' if self.backend.ready else 'NOT_READY'
+                status.stage = 'FAULT' if self.fault else 'READY' if ready else 'NOT_READY'
                 status.authority_state = self.last_result.authority_state if self.last_result else Result.AUTHORITY_NOT_ACQUIRED
             if self.last_result is not None:
                 status.last_result_valid = True
@@ -391,6 +407,7 @@ class ActionLibraryServer(Node):
     def destroy_node(self):
         self.backend.start_guard = None
         self.backend.stop_guard = None
-        self.backend.action_event_callback = None
+        for provider in self.providers.values():
+            provider.action_event_callback = None
         self.action_server.destroy()
         return super().destroy_node()

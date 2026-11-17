@@ -49,3 +49,18 @@ def verify_driver_runtime(motion):
         matches.append(bool(match and (prefix is None or driver_runtime_match(proc, prefix))))
     if matches != [True]:
         raise RuntimeError('独立 driver 校验失败：配置、可执行文件或已加载动态库不属于本工作区；请退出旧服务后运行 bash scripts/g1.sh serve')
+
+
+def existing_driver_processes():
+    """Find physical upper-body drivers across ROS domains before auto-start."""
+    result = []
+    for proc in Path('/proc').glob('[0-9]*'):
+        try:
+            argv = (proc/'cmdline').read_bytes().decode().split('\0')
+            if driver_config_match(argv, '/unused') is None:
+                continue
+            env = dict(item.split(b'=', 1) for item in (proc/'environ').read_bytes().split(b'\0') if b'=' in item)
+            result.append((int(proc.name), env.get(b'ROS_DOMAIN_ID', b'0').decode()))
+        except (OSError, ValueError, UnicodeError):
+            continue
+    return result

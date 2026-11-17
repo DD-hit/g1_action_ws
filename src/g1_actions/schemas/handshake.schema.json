@@ -17,8 +17,8 @@
     "hold_s": {
       "type": "number",
       "minimum": 0,
-      "maximum": 3,
-      "default": 1
+      "maximum": 10,
+      "default": 4
     }
   }
 }

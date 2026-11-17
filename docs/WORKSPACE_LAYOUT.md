@@ -11,7 +11,7 @@
 ## 配置
 
 每个动作一个 YAML：`elevator.yaml`、`handshake.yaml`。`actions.yaml` 仅为公共动作注册表。
-电梯业务参数及双臂驱动 pipelines 已合并至 `elevator.yaml`，原有效参数逐项保持相同。驱动配置路径由业务加载器从当前配置文件自动推导。
+公共双臂驱动 pipelines 位于 `robot.yaml`，电梯业务位于 `elevator.yaml`，握手业务位于 `handshake.yaml`。从原电梯配置抽取公共驱动参数时逐项保留原值。
 
 ## 验证结果
 

@@ -34,7 +34,7 @@ if os.environ.get('ELE_TEST_SPEED'):
         profile.update(speed=float(os.environ['ELE_TEST_SPEED']),acceleration=float(os.environ['ELE_TEST_SPEED']))
 if os.environ.get('ELE_TEST_PRESS_SPEED'):
     cfg['motion']['stage_profiles']['PRESS'].update(speed=float(os.environ['ELE_TEST_PRESS_SPEED']),acceleration=float(os.environ['ELE_TEST_PRESS_SPEED']))
-driver_cfg=yaml.safe_load((ROOT/'config/elevator.yaml').read_text())
+driver_cfg=yaml.safe_load((ROOT/'config/robot.yaml').read_text())
 driver_cfg['pipelines'][0]['fake_mode']=True
 if os.environ.get('ELE_TEST_TRANSIT_PLANNER'):
     driver_cfg['pipelines'][0]['moveit']['elevator_transit_planner']=os.environ['ELE_TEST_TRANSIT_PLANNER']

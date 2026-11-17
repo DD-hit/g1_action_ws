@@ -23,7 +23,7 @@ ROOT=Path(__file__).resolve().parents[1]
 cfg=for_direction(load(ROOT/'config/elevator.yaml'),'up')
 cfg['motion'].update(require_business_driver=False,pause_inference_on_lock=False)
 if os.environ.get('ELE_TEST_PRODUCTION_DEPTH')=='1':cfg['motion']['press_depth_m']=.013
-driver_cfg=yaml.safe_load((ROOT/'config/elevator.yaml').read_text())
+driver_cfg=yaml.safe_load((ROOT/'config/robot.yaml').read_text())
 driver_cfg['pipelines'][0]['fake_mode']=True
 driver_cfg['pipelines'][0]['fake_has_upper_body_authority']=True
 import fcntl

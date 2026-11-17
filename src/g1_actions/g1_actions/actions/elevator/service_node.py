@@ -176,9 +176,9 @@ class TaskService(Node):
             if ready:
                 if self.worker is None:
                     self.stage='READY'
-                    print('已就绪：RGB-D 已连续稳定；调用 /elevator/start 开始，/elevator/stop 停止。',flush=True)
+                    print('电梯已就绪：RGB-D 已连续稳定；使用 g1.sh run elevator --direction up/down。',flush=True)
             else:
-                print('未就绪：'+self.dependency_error,flush=True)
+                print('电梯未就绪：'+self.dependency_error,flush=True)
                 if self.worker is None:
                     self.stage='RECOVERY_REQUIRED' if self.last_result and self.last_result.get('authority_retained') else 'NOT_READY'
                 else:
@@ -232,7 +232,7 @@ class TaskService(Node):
                               '正在获取新鲜、稳定的按钮目标，尚未确认执行成功。'
                               '后续流程：接管控制权 → 到预备点 → 直线按压 → 撤回 → 归还控制权。'
                               '执行进度、最终结果及失败原因见 /elevator/service_status；'
-                              '查询：bash scripts/ele.sh status；停止：bash scripts/ele.sh stop。')
+                              '查询：bash scripts/g1.sh status；停止：bash scripts/g1.sh stop。')
         return response
 
     def stop(self,request,response):

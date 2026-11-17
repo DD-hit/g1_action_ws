@@ -12,6 +12,7 @@ from rclpy.action import ActionClient
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from rclpy.signals import SignalHandlerOptions
+from std_srvs.srv import Trigger
 from rosidl_runtime_py.convert import message_to_ordereddict
 from g1_action_interfaces.action import Execute
 from g1_action_interfaces.msg import ExecutionGoal, ExecutionResult as Result, ServerStatus
@@ -20,7 +21,7 @@ from g1_action_interfaces.srv import ListActions, GetExecution, StopActive
 STAGE_LABELS = {
     'VALIDATING': '准备任务', 'WAITING_TARGET': '获取稳定目标', 'PLANNING': '规划轨迹',
     'ACQUIRING_AUTHORITY': '接管控制权', 'APPROACHING': '到预备点',
-    'PRESSING': '直线按压', 'CONTACT_HOLD': '接触保持', 'WITHDRAWING': '沿原轨迹撤回',
+    'RETURNING': '返回初始位姿', 'PRESSING': '直线按压', 'CONTACT_HOLD': '接触保持', 'WITHDRAWING': '沿原轨迹撤回',
     'RELEASING_AUTHORITY': '归还控制权', 'FINALIZING': '任务收尾',
     'CANCELLING': '停止中', 'RECOVERING': '异常收尾', 'READY': '就绪',
     'NOT_READY': '未就绪', 'FAULT': '需要人工检查',
@@ -89,7 +90,14 @@ class Client:
             raise ValueError('--parameters 与 --direction 不能同时使用')
         if args.direction is not None and args.action_name != 'elevator':
             raise ValueError('--direction 仅适用于 elevator 动作')
+        if args.action_name != 'handshake' and (args.hold_s is not None or args.subject_handedness is not None):
+            raise ValueError('--hold-s 和 --subject-handedness 仅适用于 handshake')
+        if args.parameters is not None and (args.hold_s is not None or args.subject_handedness is not None):
+            raise ValueError('--parameters 不能与握手快捷参数混用')
         params = args.parameters if args.parameters is not None else json.dumps({'direction': args.direction or 'up'} if args.action_name == 'elevator' else {})
+        if args.action_name == 'handshake' and args.parameters is None:
+            params = json.dumps(dict(hold_s=4. if args.hold_s is None else args.hold_s,
+                                     subject_handedness=args.subject_handedness or 'any'))
         identifier = args.request_id or str(uuid.uuid4())
         goal = Execute.Goal(request=ExecutionGoal(request_id=identifier,
             action_name=args.action_name, arm={'auto': 0, 'left': 1, 'right': 2}[args.arm],
@@ -130,6 +138,10 @@ class Client:
         return self.print_result(result.result().result.result, args.json)
 
     def command(self, args):
+        if args.command == 'shutdown':
+            response = self.invoke(Trigger, '/g1_actions/shutdown', Trigger.Request())
+            print(json.dumps({'success': response.success, 'message': response.message}, ensure_ascii=False) if args.json else response.message)
+            return 0 if response.success else 1
         if args.command == 'run':
             return self.run(args)
         if args.command == 'list':
@@ -193,6 +205,8 @@ def main():
     commands = parser.add_subparsers(dest='command', required=True)
     run = commands.add_parser('run')
     run.add_argument('action_name')
+    run.add_argument('--hold-s', type=float)
+    run.add_argument('--subject-handedness', choices=['any', 'left', 'right'])
     run.add_argument('--direction', choices=['up', 'down'])
     run.add_argument('--arm', choices=['auto', 'left', 'right'], default='auto')
     run.add_argument('--timeout-s', type=float, default=60.)
@@ -203,7 +217,7 @@ def main():
     get.add_argument('request_id')
     stop = commands.add_parser('stop')
     stop.add_argument('--request-id')
-    for command in [run, get, stop, commands.add_parser('list'), commands.add_parser('status')]:
+    for command in [run, get, stop, commands.add_parser('list'), commands.add_parser('status'), commands.add_parser('shutdown')]:
         command.add_argument('--json', action='store_true')
     args = parser.parse_args()
     rclpy.init(signal_handler_options=SignalHandlerOptions.NO)

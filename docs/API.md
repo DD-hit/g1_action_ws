@@ -1,6 +1,6 @@
 # G1 动作库接口规范 v1
 
-状态：电梯动作已接入统一执行服务端和 CLI；握手感知与执行尚未实现。
+状态：电梯与握手均接入统一执行服务端和 CLI，共用互斥、取消、超时和最终结果。
 运行 `bash scripts/g1.sh serve` 后提供本文的统一接口。电梯兼容入口共用同一调度器。
 编译、脚本测试和接口调用示例见根目录 `README.md`。
 
@@ -19,6 +19,7 @@
 | `/g1_actions/list_actions` | `g1_action_interfaces/srv/ListActions` | 查询动作、实现状态、就绪状态和参数 Schema |
 | `/g1_actions/get_execution` | `g1_action_interfaces/srv/GetExecution` | 使用业务请求 ID 查询执行状态或最终结果 |
 | `/g1_actions/stop_active` | `g1_action_interfaces/srv/StopActive` | 客户端丢失 GoalHandle 后请求停止，优先传明确请求 ID |
+| `/g1_actions/shutdown` | `std_srvs/srv/Trigger` | 请求收尾并关闭统一后台；响应仅表示已接受，实际退出看后台终端 |
 | `/g1_actions/status` | `g1_action_interfaces/msg/ServerStatus` | 面向所有观察者的服务状态及最近结果 |
 
 ROS 2 Action 是长任务接口，不意味着业务命令立即返回成功。
@@ -43,9 +44,10 @@ Action goal 的 `request` 类型为 `ExecutionGoal`。
 速度、关节限制、按压深度、相机外参和工具标定属于服务端配置，不允许调用方通过任意 JSON 覆盖。
 
 电梯参数：`{"direction":"up"}` 或 `{"direction":"down"}`。
-握手参数：`{"subject_handedness":"any","hold_s":1.0}`。
-`subject_handedness` 是被识别的人手，`arm` 是 G1 使用的手臂，两者不可混淆。
-握手保持时间从到达规定位置并确认停稳开始计时，范围 `0～3 s`。
+握手参数：`{"subject_handedness":"any","hold_s":4.0}`。
+`subject_handedness` 是被识别的人手筛选条件，`arm` 是 G1 使用的手臂。握手 `arm=0` 时左人手对应左臂、右人手对应右臂，不按图像位置选臂；显式 `arm=1/2` 覆盖自动选择。
+目标预检失败时，仅尝试同侧 `handshake.yaml` 中的固定备用位姿，备用也需通过 IK、限位、碰撞和 PTP 路径检查；不改用另一侧，不使用 OMPL。故障、急停、取消或运动中异常不触发备用动作。
+握手保持时间从到达规定位置并确认停稳开始计时，范围 `0～10 s`，默认 `4 s`。
 握手执行只使用新鲜实时 RGB-D，不接受录制视频或外部未经验证的位姿作为真机运动目标。
 
 示例（先启动统一服务端）：
@@ -71,7 +73,7 @@ ROS 层接受 goal 只说明已建立结果通道，不等同于业务验证通�
 `GetExecution.found=false` 时忽略 feedback/result；`terminal=false` 时只有 feedback 有意义，
 `terminal=true` 时 result 才是最终结果，不能读取活跃任务的默认 result 当作失败。
 
-未实现的握手返回 `NOT_IMPLEMENTED`；已实现但相机/标定/驱动未就绪返回 `NOT_READY`。
+未加载的动作提供者返回 `NOT_IMPLEMENTED`；已加载但相机或驱动未就绪返回 `NOT_READY`。
 `ListActions.ready` 是动作级就绪状态，不以“某个包能导入”代替硬件就绪。
 
 ## 5. 生命周期与反馈
@@ -80,7 +82,7 @@ ROS 层接受 goal 只说明已建立结果通道，不等同于业务验证通�
 `APPROACHING` → 动作特有阶段 → `WITHDRAWING` → `RELEASING_AUTHORITY` → `FINALIZING`。
 后端若必须先接管再规划，可以交换这两个阶段；反馈必须反映实际执行顺序，不虚报已完成阶段。
 取消和异常可进入 `CANCELLING`、`RECOVERING`，最终为 `COMPLETED`、`CANCELLED` 或 `FAILED`。
-电梯动作特有阶段：`PRESSING`、`CONTACT_HOLD`；握手动作：`ALIGNING`、`HOLDING`。
+电梯动作特有阶段：`PRESSING`、`CONTACT_HOLD`；握手动作：`CONTACT_HOLD`、`RETURNING`。
 
 `ExecutionFeedback` 至少在阶段变化时立即发送，执行期间目标频率为 5 Hz。
 `progress` 在 `[0,1]` 内，无法可靠估计则为 `-1`，不得用计时器伪造运动进度。
@@ -88,7 +90,7 @@ ROS 层接受 goal 只说明已建立结果通道，不等同于业务验证通�
 `target_pose_valid=false` 时忽略位姿字段；为 true 时 Header 表示参考坐标系，
 `controlled_frame` 表示被控制工具中心，不能把腕部、指尖和橡胶手中心混用。
 目标锁定后不因视觉抖动或重新检测而跳变；握手第一版也不在接近途中追踪移动人手。
-发现目标移动超过后续配置的允许范围时，应取消/退出，不能偷偷更换目标。
+握手锁定后不再读取相机，不跟随人手、不因之后断流或人手移动取消；驱动反馈、急停与控制权监测仍持续。到位保持后返回，再归还控制权。
 
 ## 6. 最终结果与错误码
 
@@ -158,24 +160,18 @@ RGB、对齐深度、内参必须对应同一个已标定数据流。MediaPipe �
 HandObservation 的 21 点采用 MediaPipe 标准索引；`x/y` 为图像归一化坐标，`z` 仅是模型相对深度。
 `handedness` 应纠正图像镜像关系后表达真实左右手，不能直接混用自拍预览标签。
 `tracking_id` 不因临时排序改变，换人/换手必须分配新 ID。
-`PalmObservation.valid=false` 或目标超时都不得参与运动；深度不足时禁止用全零位姿伪装有效目标。
+完整姿态接口中的无效姿态不得用作运动姿态；深度不足时禁止用全零位置伪装有效目标。
 无手时不重复发布旧检测；消费者以时间戳过期判断目标丢失。
 置信度范围 `[0,1]`，无协方差估计时 `covariance_valid=false`，不得把零矩阵解释为完美精度。
 
-初始目标最大年龄默认 `0.5 s`，RGB-D 时间差上限和深度有效点阈值放入标定后的服务端配置。
+初始目标最大年龄默认 `0.6 s`，RGB-D 时间差上限和深度有效点阈值放入标定后的服务端配置。
 图像光学系遵循 REP-103：`+X` 向右、`+Y` 向下、`+Z` 向前；机器人工作系为 `torso_link`。
 所有位置单位为 m，时间为 s，角度为 rad，姿态四元数顺序为 `x,y,z,w`，必须归一化。
-握手掌心中心第一版定义为关键点 `0、5、9、13、17` 对应有效 3D 点的几何中心；
-五个点深度不能可靠恢复时目标无效，不悄悄改用其他中心定义。
-人手局部 `+Z` 是掌心外法向，`+X` 是小指根 `17` 指向食指根 `5` 在掌平面上的单位投影，
-`+Y=+Z×+X`。两只手都使用右手坐标系；`+Y` 不强行同时解释为四指方向。
-
-在机器人橡胶手中心局部轴完成相同含义的标定后，默认对齐规则为：
-`R_base_tool = R_base_palm × diag(1,-1,-1)`。
-即保留 X、反向 Y/Z，是绕 X 轴旋转 180°，行列式仍为 `+1`。
-不能把 XYZ 全部取反，那是反射而非旋转。“XY 对称”在此用明确旋转代替模糊描述。
-`T_base_wrist = T_base_tool_target × inverse(T_wrist_tool)`；工具中心标定缺失时握手必须未就绪。
-电梯控制点仍为既有按压指尖；握手为橡胶手中心，两个动作不得复用同一个偏移量。
+握手当前采用位置识别：真实深度恢复的手腕点，沿手腕指向四指根部的 3D 单位方向偏移 `0.06 m`；不使用二维像素偏移代替三维位移。
+姿态固定为 `torso_link` 中四指前下方 `45°`，不跟随人手旋转。橡胶手中心偏移通过 URDF 固定链换算为腕部目标，左右手模型已镜像，不能再把坐标整体取反。
+相机外参复用已由电梯动作验证的安装关系；橡胶手中心和临时固定备用位置仍为模型候选值，不宣称已完成物理标定。
+电梯控制点为既有按压指尖，握手为橡胶手中心，两个动作不共用业务偏移量。
+位置模式的 `PalmObservation.valid=false` 表示完整姿态无效，不能据此否定位置结果；运动位置从 `/handshake/perception_status` 的新鲜 `geometry_valid`、`stable` 目标读取，并且只锁定一次。
 
 ## 9. QoS 与状态
 
@@ -188,8 +184,8 @@ HandObservation 的 21 点采用 MediaPipe 标准索引；`x/y` 为图像归一�
 
 ## 10. 动作插件和日志约定
 
-下一阶段统一适配器约定 `validate(parameters, context)`、`check_ready(context)`、
-`execute(context, parameters)`、`cancel(context)`、`cleanup(context)`。
+当前动作提供者由统一调度器启动，提供就绪检查、启动、停止和异步最终结果。
+握手使用项目 `.venv` 内的执行子进程隔离 Python 依赖，阶段事件回流到统一反馈和日志；不启动第二套调度器。
 调度器统一管理互斥、请求 ID、超时、反馈和最终结果；动作不得创建第二套并行控制权管理器。
 电梯先复用现有 service/task 的控制权生命周期，适配层只映射结果，不能双重接管和归还。
 取消入口必须线程安全且幂等，执行线程负责退出/收尾；cleanup 必须幂等，不能运行两次归位。
@@ -203,7 +199,7 @@ CLI 默认中文摘要并返回退出码 `0=成功`、`1=任务失败/取消`、
 
 ## 11. 接入顺序与兼容
 
-统一入口、校验、状态、取消、结果缓存和电梯适配已实现；下一阶段接握手感知与执行。
+统一入口、校验、状态、取消、结果缓存、电梯和握手适配已实现。旧握手执行命令转交统一入口。
 电梯旧接口 `/elevator/start`、`/elevator/stop`、`/elevator/service_status` 仅作兼容入口，
 接入后必须经过同一个调度器/互斥锁，不能同时存在两套互不知情的任务管理器。
 当前电梯兼容入口已通过 guard 接入同一调度器；既有直接控制机械臂的低层调试脚本不属于公共执行 API，不得与调度任务混用。

@@ -12,3 +12,5 @@ __pycache__/
 ._*
 
 /src/g1_actions/data/
+/.venv/
+/src/g1_actions/models/hand_landmarker.task

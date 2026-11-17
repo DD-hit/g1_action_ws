@@ -2,7 +2,7 @@
 <package format="3">
   <name>g1_actions</name>
   <version>0.1.0</version>
-  <description>G1 action library: elevator adapter and handshake scaffold.</description>
+  <description>G1 action library: unified elevator and handshake actions.</description>
   <maintainer email="unitree@example.com">unitree</maintainer>
   <license>Proprietary</license>
   <buildtool_depend>ament_python</buildtool_depend>

@@ -35,7 +35,7 @@ class DriverModelLoadingTests(unittest.TestCase):
     def run_model(self, corrupt):
         with tempfile.TemporaryDirectory(prefix='g1_model_loading_') as directory:
             folder = Path(directory)
-            cfg = yaml.safe_load((ROOT / 'config/elevator.yaml').read_text())
+            cfg = yaml.safe_load((ROOT / 'config/robot.yaml').read_text())
             pipeline = cfg['pipelines'][0]
             pipeline.update(fake_mode=True, fake_has_upper_body_authority=False)
             pipeline['unitree']['connect_on_init'] = False

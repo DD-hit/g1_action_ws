@@ -40,7 +40,7 @@ class UnifiedElevatorDriverFakeTests(unittest.TestCase):
         case = json.loads((root / 'test/fixtures/ik_replays.json').read_text())[case_name]
         cfg = load(root / 'config/elevator.yaml')
         cfg['motion'].update(require_business_driver=False, pause_inference_on_lock=False)
-        driver_cfg = yaml.safe_load((root / 'config/elevator.yaml').read_text())
+        driver_cfg = yaml.safe_load((root / 'config/robot.yaml').read_text())
         pipe = driver_cfg['pipelines'][0]
         pipe['fake_mode'] = True
         pipe['fake_has_upper_body_authority'] = True

@@ -1,21 +1,119 @@
-# Draft only. No motion or detector is enabled by this configuration.
-enabled: false
+# Handshake action: one snapshot, fixed orientation, hold, return, release.
+enabled: true
+model_file: robot/g1_29dof_mode_15.urdf
 perception:
   backend: mediapipe
+  delegate: auto  # Jetson uses GPU; other hosts use CPU. Failure never silently falls back.
   input_mode: recorded_video
   video_path: null
+  model_path: models/hand_landmarker.task
+  num_hands: 2
+  min_detection_confidence: 0.5
+  min_presence_confidence: 0.5
+  min_tracking_confidence: 0.5
+  max_image_side: 960
+  max_processing_fps: 30.0
+  palm_frame:
+    enabled: true
+    confirm_frames: 5
+    side_consensus: 0.8
+    min_handedness_score: 0.6
+    normal_sign_by_label: {Right: 1, Left: -1}
+    max_missing_s: 0.3
+    match_distance_norm: 0.2
+    smoothing_tau_s: 0.08
+    jump_reject_deg: 70.0
+    reacquire_frames: 3
+    reacquire_consistency_deg: 20.0
+    min_palm_span_m: 0.02
+    max_plane_residual_ratio: 0.5
+    axis_length_palm_ratio: 0.7
   camera_intrinsics: null
   aligned_depth_path: null
   depth_scale_m: null
+  rgbd:
+    position_method: wrist_offset
+    wrist_offset:
+      distance_m: 0.06
+      patch_radius_px: 3
+      min_patch_samples: 8
+      min_finger_bases: 3
+      max_depth_mad_m: 0.012
+      max_wrist_to_base_m: 0.16
+    color_topic: /camera/camera/color/image_raw
+    depth_topic: /camera/camera/aligned_depth_to_color/image_raw
+    info_topic: /camera/camera/color/camera_info
+    track_max_missing_s: 0.5  # 6 FPS may skip one frame; never reuse missing observations
+    max_sync_skew_s: 0.02
+    max_frame_age_s: 0.6
+    min_depth_m: 0.2
+    max_depth_m: 1.2
+    min_palm_area_px: 100
+    min_depth_points: 80
+    min_inlier_fraction: 0.6
+    plane_inlier_m: 0.004
+    max_plane_residual_m: 0.004
+    max_center_plane_difference_m: 0.015
+    stable_frames: 3
+    stable_position_m: 0.02
+    stable_angle_deg: 15.0
 frames:
   robot_base: torso_link
-  camera_optical: null
+  camera_optical: camera_color_optical_frame
   palm_normal_axis: '+Z'
-  tangent_convention: pending_video_validation
+  tangent_convention: right_handed_x_equals_y_cross_z
 tool:
   arm: right
   reference: rubber_hand_center
-  wrist_to_center_xyz_m: null
-  wrist_to_center_rotation: null
+tools:
+  left:
+    wrist_link: left_wrist_yaw_link
+    hand_link: left_rubber_hand
+    hand_center_xyz_m: [0.04, -0.008801745505975104, 0.0]
+    source: mesh_palm_surface_candidate
+    verified: false
+  right:
+    wrist_link: right_wrist_yaw_link
+    hand_link: right_rubber_hand
+    hand_center_xyz_m: [0.04, 0.008805144887507083, 0.0]
+    source: mesh_palm_surface_candidate
+    verified: false
+camera_extrinsics:
+  mount_link: d435_link
+  optical_frame: camera_color_optical_frame
+  verified: true
+  validation_source: user_confirmed_elevator_operation
+  # Reuse the existing elevator URDF mount + live camera factory TF chain.
+  measured_torso_to_optical: null
+  mount_to_camera_link:
+    # Same housing-to-mount convention used by the validated elevator action.
+    xyz_m: [0.0, 0.0, 0.0]
+    quaternion_xyzw: [0.0, 0.0, 0.0, 1.0]
+  camera_link_to_optical:
+    source: live_tf_static_20261117
+    parent_frame: camera_link
+    child_frame: camera_color_optical_frame
+    xyz_m: [-0.0002978085002649321, 0.014807665064685949, 0.00014017170444010802]
+    quaternion_xyzw: [-0.5004467903872728, 0.49960661368106635, -0.4976977552164586, 0.5022381765753307]
 execution:
-  enabled: false
+  enabled: true
+  arm_selection: same_handedness
+  fixed_fallback:
+    enabled: true
+    provisional: true  # Candidate positions; refine on site, always preflight first.
+    frame_id: torso_link
+    left: {palm_xyz_m: [0.30, 0.20, 0.10]}
+    right: {palm_xyz_m: [0.30, -0.20, 0.10]}
+  precontact_distance_m: 0.0  # Align rubber-palm center directly with estimated human palm
+  hold_s: 4.0
+  orientation_mode: fixed
+  fixed_orientation:
+    frame_id: torso_link
+    finger_downward_deg: 45.0
+    source: urdf_nominal
+    verified: false  # Nominal model only; actual installation and IK not verified
+    left_end_effector_link: left_wrist_yaw_link
+    right_end_effector_link: right_wrist_yaw_link
+    # The rubber-hand models are mirrored; their wrist rotations are identical.
+    left_quaternion_xyzw: [0.0, 0.3826834323650898, 0.0, 0.9238795325112867]
+    right_quaternion_xyzw: [0.0, 0.3826834323650898, 0.0, 0.9238795325112867]
