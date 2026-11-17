@@ -1,6 +1,7 @@
 <!--
 URDF design ledger: G1 fixed-head, fixed rubber-hand elevator application.
 Source: existing g1_ws/lacf g1_description/g1_29dof_mode_15.urdf, vendor meshes.
+Resource owner: g1_actions; meshes resolve without the removed ele_elevator package.
 Units: metres, kilograms, radians; original link/joint/inertial values retained.
 Link/joint ledger: original 29 movable joints and limits are unchanged. pelvis is
 root; torso_link is the manipulation reference. d435_link is frame-only, fixed
@@ -43,7 +44,7 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/pelvis.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/pelvis.STL"/>
       </geometry>
       <material name="dark"/>
     </visual>
@@ -57,14 +58,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/pelvis_contour_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/pelvis_contour_link.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/pelvis_contour_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/pelvis_contour_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -83,14 +84,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_hip_pitch_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_hip_pitch_link.STL"/>
       </geometry>
       <material name="dark"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_hip_pitch_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_hip_pitch_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -110,14 +111,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_hip_roll_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_hip_roll_link.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_hip_roll_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_hip_roll_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -137,14 +138,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_hip_yaw_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_hip_yaw_link.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_hip_yaw_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_hip_yaw_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -164,14 +165,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_knee_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_knee_link.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_knee_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_knee_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -191,14 +192,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_ankle_pitch_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_ankle_pitch_link.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_ankle_pitch_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_ankle_pitch_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -218,7 +219,7 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_ankle_roll_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_ankle_roll_link.STL"/>
       </geometry>
       <material name="dark"/>
     </visual>
@@ -263,14 +264,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_hip_pitch_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_hip_pitch_link.STL"/>
       </geometry>
       <material name="dark"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_hip_pitch_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_hip_pitch_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -290,14 +291,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_hip_roll_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_hip_roll_link.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_hip_roll_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_hip_roll_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -317,14 +318,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_hip_yaw_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_hip_yaw_link.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_hip_yaw_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_hip_yaw_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -344,14 +345,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_knee_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_knee_link.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_knee_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_knee_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -371,14 +372,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_ankle_pitch_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_ankle_pitch_link.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_ankle_pitch_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_ankle_pitch_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -398,7 +399,7 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_ankle_roll_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_ankle_roll_link.STL"/>
       </geometry>
       <material name="dark"/>
     </visual>
@@ -445,7 +446,7 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/waist_yaw_link_rev_1_0.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/waist_yaw_link_rev_1_0.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
@@ -466,7 +467,7 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/waist_roll_link_rev_1_0.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/waist_roll_link_rev_1_0.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
@@ -487,14 +488,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/torso_link_rev_1_0.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/torso_link_rev_1_0.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/torso_link_rev_1_0.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/torso_link_rev_1_0.STL"/>
       </geometry>
     </collision>
   </link>
@@ -521,14 +522,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/logo_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/logo_link.STL"/>
       </geometry>
       <material name="dark"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/logo_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/logo_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -543,14 +544,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/head_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/head_link.STL"/>
       </geometry>
       <material name="dark"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/head_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/head_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -602,7 +603,7 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_shoulder_pitch_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_shoulder_pitch_link.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
@@ -629,7 +630,7 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_shoulder_roll_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_shoulder_roll_link.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
@@ -656,14 +657,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_shoulder_yaw_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_shoulder_yaw_link.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_shoulder_yaw_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_shoulder_yaw_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -683,14 +684,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_elbow_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_elbow_link.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_elbow_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_elbow_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -717,14 +718,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_wrist_roll_link_5010.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_wrist_roll_link_5010.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_wrist_roll_link_5010.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_wrist_roll_link_5010.STL"/>
       </geometry>
     </collision>
   </link>
@@ -744,14 +745,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_wrist_pitch_link_5010.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_wrist_pitch_link_5010.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_wrist_pitch_link_5010.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_wrist_pitch_link_5010.STL"/>
       </geometry>
     </collision>
   </link>
@@ -771,14 +772,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_wrist_yaw_link_5010.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_wrist_yaw_link_5010.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_wrist_yaw_link_5010.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_wrist_yaw_link_5010.STL"/>
       </geometry>
     </collision>
   </link>
@@ -796,13 +797,13 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/left_rubber_hand.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/left_rubber_hand.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
       <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="package://ele_elevator/robot/meshes/left_rubber_hand_collision.STL"/></geometry>
+      <geometry><mesh filename="package://g1_actions/robot/meshes/left_rubber_hand_collision.STL"/></geometry>
     </collision>
   </link>
   <link name="right_shoulder_pitch_link">
@@ -814,7 +815,7 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_shoulder_pitch_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_shoulder_pitch_link.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
@@ -841,7 +842,7 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_shoulder_roll_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_shoulder_roll_link.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
@@ -868,14 +869,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_shoulder_yaw_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_shoulder_yaw_link.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_shoulder_yaw_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_shoulder_yaw_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -895,14 +896,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_elbow_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_elbow_link.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_elbow_link.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_elbow_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -929,14 +930,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_wrist_roll_link_5010.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_wrist_roll_link_5010.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_wrist_roll_link_5010.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_wrist_roll_link_5010.STL"/>
       </geometry>
     </collision>
   </link>
@@ -956,14 +957,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_wrist_pitch_link_5010.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_wrist_pitch_link_5010.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_wrist_pitch_link_5010.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_wrist_pitch_link_5010.STL"/>
       </geometry>
     </collision>
   </link>
@@ -983,14 +984,14 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_wrist_yaw_link_5010.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_wrist_yaw_link_5010.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_wrist_yaw_link_5010.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_wrist_yaw_link_5010.STL"/>
       </geometry>
     </collision>
   </link>
@@ -1008,13 +1009,13 @@ No link axes, joint signs, original origins or mass properties are guessed.
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://ele_elevator/robot/meshes/right_rubber_hand.STL"/>
+        <mesh filename="package://g1_actions/robot/meshes/right_rubber_hand.STL"/>
       </geometry>
       <material name="white"/>
     </visual>
       <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="package://ele_elevator/robot/meshes/right_rubber_hand_collision.STL"/></geometry>
+      <geometry><mesh filename="package://g1_actions/robot/meshes/right_rubber_hand_collision.STL"/></geometry>
     </collision>
   </link>
 
