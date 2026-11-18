@@ -75,7 +75,7 @@ motion:
   # Driver scaling factors (0, 1], not m/s or rad/s.
   stage_profiles:
     APPROACH: {speed: 0.45, acceleration: 0.35}
-    PRESS: {speed: 0.60, acceleration: 0.45}
+    PRESS: {speed: 0.72, acceleration: 0.54}
     # Cached retraction independently scales PRESS timing; these profiles apply only to planned moves.
     WITHDRAW: {speed: 0.35, acceleration: 0.30}
     RETURN: {speed: 0.15, acceleration: 0.12}

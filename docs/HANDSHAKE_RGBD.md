@@ -33,7 +33,9 @@ bash scripts/g1.sh handshake-live --duration 30
 - `/handshake/perception_status`：JSON 状态和无效原因。
 - `/handshake/image_annotated`：绘有掌心坐标轴的图像。
 
-结果目录包含逐帧 `observations.jsonl`、`summary.json`、最新图像 `latest.jpg` 和 RGB-D 快照 `rgbd_latest.npz`；检测到稳定掌心后额外保存 `valid.jpg`、`rgbd_valid.npz`。后两者是历史有效样本，不能当成实时目标。
+生产服务自动使用 `--production`：不写逐帧图像/压缩深度和 `observations.jsonl`，退出时仍保存含处理耗时的 `summary.json`；只在有订阅者时绘制并发布标注图。只读调试默认保留诊断文件，`--record-rgbd` 可录制每帧同步数据。
+
+调试结果目录包含逐帧 `observations.jsonl`、`summary.json`、最新图像 `latest.jpg` 和 RGB-D 快照 `rgbd_latest.npz`；检测到稳定掌心后额外保存 `valid.jpg`、`rgbd_valid.npz`。后两者是历史有效样本，不能当成实时目标。
 
 ## 一次采集，反复回放
 

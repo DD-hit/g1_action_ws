@@ -23,7 +23,7 @@ class TargetPreparationTests(unittest.TestCase):
             return {'approach':{},'press':{}}
         node.poses=poses
         def spin(*a,**k):now[0]+=.01;latest[0]['stamp_sec']=now[0]
-        with patch('g1_actions.actions.elevator.task_node.camera_signature',return_value='id'),patch('g1_actions.actions.elevator.task_node.time.monotonic',side_effect=lambda:now[0]),patch('g1_actions.actions.elevator.task_node.rclpy.spin_once',side_effect=spin):
+        with patch('g1_actions.actions.elevator.task_node.camera_signature',return_value='id'),patch('g1_actions.actions.elevator.task_node.time.monotonic',side_effect=lambda:now[0]),patch.object(node,'spin_once',side_effect=spin,create=True):
             target,poses,selection=PressTask.prepare_target(node,2.,True)
         self.assertEqual(calls[0],2);self.assertEqual(node.arm,'right')
         self.assertGreater(target['stamp_sec'],.6)
@@ -31,7 +31,7 @@ class TargetPreparationTests(unittest.TestCase):
     def test_missing_fresh_target_times_out_without_locking(self):
         node,now,latest=self.fixture();node.target=Mock(side_effect=RuntimeError('No fresh vision result'))
         def spin(*a,**k):now[0]+=.2
-        with patch('g1_actions.actions.elevator.task_node.time.monotonic',side_effect=lambda:now[0]),patch('g1_actions.actions.elevator.task_node.rclpy.spin_once',side_effect=spin):
+        with patch('g1_actions.actions.elevator.task_node.time.monotonic',side_effect=lambda:now[0]),patch.object(node,'spin_once',side_effect=spin,create=True):
             with self.assertRaisesRegex(RuntimeError,'Timed out waiting for a fresh target snapshot'):
                 PressTask.prepare_target(node,.4,True)
         node.lock_snapshot.assert_not_called()
@@ -79,7 +79,7 @@ class ContactLimitTransitionTests(unittest.TestCase):
         def cancel():node.status.current_state=DualArmStatus.IDLE
         node.cancel_motion=Mock(side_effect=cancel)
         def spin(*a,**k):now[0]+=.25;node.status_sequence+=1
-        with patch('g1_actions.actions.elevator.task_node.time.monotonic',side_effect=lambda:now[0]),patch('g1_actions.actions.elevator.task_node.rclpy.spin_once',side_effect=spin),patch('g1_actions.actions.elevator.task_node.rclpy.ok',return_value=True):
+        with patch('g1_actions.actions.elevator.task_node.time.monotonic',side_effect=lambda:now[0]),patch.object(node,'spin_once',side_effect=spin,create=True),patch('g1_actions.actions.elevator.task_node.rclpy.ok',return_value=True):
             reached=PressTask.move(node,{'xyz':[.1,0.,0.],'rpy':[0.,0.,0.]},True,'PRESS')
         self.assertFalse(reached);node.cancel_motion.assert_called_once()
         self.assertEqual(node.press_completion['termination'],'contact_time_limit')
@@ -95,5 +95,23 @@ class ContactLimitTransitionTests(unittest.TestCase):
         node.prepare_target=prepare
         with self.assertRaises(StopBeforeMotion):PressTask.run(node,True,2.,False)
         self.assertEqual(order,['driver_checks','target_selection'])
+
+class HoverReturnTests(unittest.TestCase):
+    def test_noncontact_trial_returns_to_its_captured_initial_pose(self):
+        initial={'xyz':[.01,-.2,-.11],'rpy':[0.,1.3,0.]}
+        approach={'xyz':[.2,-.1,.1],'rpy':[0.,0.,0.]}
+        node=SimpleNamespace(cfg={'camera':{'verified':False},'tools':{'right':{'verified':False}},
+            'motion':{'pause_inference_on_lock':False,
+            'approach_m':.06,'command_timeout_s':5.}},arm='right',initial_pose=initial,
+            check_execution_ready=Mock(),prepare_target=Mock(return_value=({},
+                {'approach':approach},{})),event=Mock(),health=Mock(),
+            configure_panel=Mock(),move=Mock(),spin_once=Mock(),
+            waist=SimpleNamespace(has_upper_body_authority=True))
+        clock=iter([0.,1.,2.,3.])
+        with patch('g1_actions.actions.elevator.task_node.motion_scales',return_value=(.25,.15)),patch('g1_actions.actions.elevator.hover_guard.HoverGuard',return_value=SimpleNamespace(minimum_seen=.06)),patch('g1_actions.actions.elevator.task_node.time.monotonic',side_effect=lambda:next(clock)):
+            PressTask.run(node,execute=True,wait_s=2.,hover_only=True)
+        self.assertEqual(node.move.call_count,2)
+        self.assertEqual(node.move.call_args_list[0].args,(approach,False,'HOVER_APPROACH'))
+        self.assertEqual(node.move.call_args_list[1].args,(initial,False,'HOVER_RETURN'))
 
 if __name__=='__main__':unittest.main()

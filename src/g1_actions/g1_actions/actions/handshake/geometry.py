@@ -19,8 +19,8 @@ def fixed_orientation(config, arm, *, require_verified=False):
     if require_verified and not fixed.get('verified', False):
         raise ValueError('Fixed handshake orientation has not been verified on the robot')
     angle = float(fixed['finger_downward_deg'])
-    if not math.isfinite(angle) or not 0 <= angle < 90:
-        raise ValueError('Finger downward angle must be in [0, 90) degrees')
+    if not math.isfinite(angle) or not -90 < angle < 90:
+        raise ValueError('Signed finger pitch must be within (-90, 90) degrees; positive down, negative up')
     radians = math.radians(angle)
     c, s = math.cos(radians), math.sin(radians)
     rotation = np.array([[c, 0., s], [0., 1., 0.], [-s, 0., c]])

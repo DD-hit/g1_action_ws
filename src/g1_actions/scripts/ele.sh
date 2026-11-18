@@ -19,6 +19,7 @@ fi
 export ELE_CAMERA_BACKEND=${ELE_CAMERA_BACKEND:-pipeline}
 export ELE_CAMERA_FPS=${ELE_CAMERA_FPS:-6}
 export ELE_CAMERA_OUTPUT_FPS=${ELE_CAMERA_OUTPUT_FPS:-6}
+source "${ACTION_WS}/scripts/ros_transport.sh"
 command=${1:-serve}
 if (( $# )); then shift; fi
 case "$command" in

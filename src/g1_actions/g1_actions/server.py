@@ -21,6 +21,7 @@ from action_msgs.srv import CancelGoal
 from g1_action_interfaces.action import Execute
 from g1_action_interfaces.msg import ExecutionGoal, ExecutionResult as Result, ExecutionFeedback, ActionInfo, ServerStatus
 from g1_action_interfaces.srv import ListActions, GetExecution, StopActive
+from .console import STAGE_LABELS, ARMS as ARM_LABELS, line as console_line, reason_text
 from .protocol import ARMS, ARM_IDS, STAGES, InvalidRequest, validate, make_result, map_result
 
 
@@ -41,6 +42,11 @@ class Execution:
     transport_cancel_sent: bool = False
     transport_cancel_future: object = None
     ever_acquired: bool = False
+    last_stage_at: float = 0.
+    last_logged_stage: str = ''
+    target_locked: bool = False
+    notice_at: float = 0.
+    notice_reason: str = ''
 
 
 class Completion:
@@ -55,6 +61,8 @@ class ActionLibraryServer(Node):
     def __init__(self, backend, cleanup_timeout_s=10., log_path=None, providers=None):
         super().__init__('g1_action_server')
         self.backend = backend
+        backend.console_managed = True
+        self.component_notices = {}
         self.providers = dict(providers or {})
         self.providers["elevator"] = backend
         self.cleanup_timeout_s = cleanup_timeout_s
@@ -88,13 +96,33 @@ class ActionLibraryServer(Node):
             record = self.active
             if record is None or record.result is not None or record.request.action_name != action_name:
                 return
-            stage = event['stage']
+            raw_stage = event['stage']
+            if raw_stage == 'TARGET_LOCKED':
+                record.target_locked = True
+                self.log(record,raw_stage,'后续运动不再依赖视觉；继续监测驱动及控制权',detail=True)
+            elif raw_stage == 'PREVIEW' and action_name == 'handshake':
+                point=event.get('precontact_palm_xyz_m')
+                if point:self.log(record,raw_stage,'掌心目标（torso_link）：['+', '.join(f'{x:.3f}' for x in point)+'] m',detail=True)
+            elif raw_stage == 'FIXED_FALLBACK':
+                self.log(record,raw_stage,'识别目标规划失败，尝试同侧固定握手位姿；'+reason_text(event.get('reason','')),detail=True)
+            elif raw_stage == 'DRIVER_PLAN_CACHED':
+                source=event.get('source','')
+                planner='固定关节目标 PTP' if source=='pilz_PTP' else '有限绕行' if 'ompl' in source.lower() else source
+                direction='返回' if event.get('motion_stage')=='RETURN' else '接近'
+                self.log(record,raw_stage,direction+'｜'+planner+'｜将执行已检查的缓存轨迹',detail=True)
+            elif raw_stage == 'WAITING_TARGET' and event.get('reason'):
+                now=time.monotonic();reason=reason_text(event['reason'])
+                if reason!=record.notice_reason and now-record.notice_at>=2.:
+                    self.log(record,'WAITING_TARGET',reason,detail=True)
+                    record.notice_at,record.notice_reason=now,reason
+            stage = raw_stage
             if stage in ('MOTION_ACCEPTED', 'MOTION_REACHED'):
                 stage = event.get('motion_stage', '')
             stage = {'CONTACT_STARTED': 'PRESS', 'CONTACT_TIME_LIMIT': 'PRESS',
                      'WITHDRAW_VERIFIED': 'WITHDRAW', 'TARGET_LOCKED': 'PLANNING',
                      'PREVIEW': 'PLANNING', 'TASK_FINISHED': 'FINALIZING',
                      'ARM_SELECTED': 'PLANNING', 'FIXED_FALLBACK': 'PLANNING',
+                     'DRIVER_PREFLIGHT': 'PLANNING', 'DRIVER_PLAN_CACHED': 'PLANNING',
                      'PREFLIGHT_STAGE': 'PLANNING', 'PREFLIGHT_PASSED': 'PLANNING',
                      'HOLD': 'DWELL', 'RETURN': 'RETURN'}.get(stage, stage)
             if stage in STAGES or stage in ('PLANNING', 'FINALIZING'):
@@ -116,21 +144,53 @@ class ActionLibraryServer(Node):
         return ExecutionFeedback(request_id=record.request.request_id,
             action_name=record.request.action_name, selected_arm=arm,
             stage=stage, progress=-1., elapsed_s=time.monotonic() - record.created,
-            authority_state=authority, message='执行超时，正在收尾' if record.deadline_exceeded else stage)
+            authority_state=authority, message='执行超时，正在收尾' if record.deadline_exceeded else STAGE_LABELS.get(stage,stage))
 
-    def log(self, record, stage, message, result=None):
-        event = dict(timestamp=self.get_clock().now().nanoseconds * 1e-9,
-                     request_id=record.request.request_id, action_name=record.request.action_name,
-                     stage=stage, level='INFO' if result is None or result.success else 'ERROR',
-                     message=message)
-        if result is not None:
-            event['result'] = message_to_ordereddict(result)
+    def log(self, record, stage, message, result=None, detail=False):
+        now=time.monotonic()
+        elapsed=now-record.created
+        stage_elapsed=now-(record.last_stage_at or record.created)
+        arm=record.feedback.selected_arm if record.feedback is not None else record.request.arm
+        if result is not None:arm=result.selected_arm
+        event=dict(timestamp=self.get_clock().now().nanoseconds*1e-9,
+                   request_id=record.request.request_id,action_name=record.request.action_name,
+                   stage=stage,level='INFO' if result is None or result.success else 'ERROR',
+                   message=message,elapsed_s=elapsed,stage_elapsed_s=stage_elapsed,selected_arm=arm,
+                   detail=detail)
+        if result is not None:event['result']=message_to_ordereddict(result)
         if self.log_path:
             try:
-                with self.log_path.open('a') as stream:
-                    stream.write(json.dumps(event, ensure_ascii=False) + '\n')
-            except OSError as error:
-                self.get_logger().error('写入动作日志失败：' + str(error))
+                with self.log_path.open('a') as stream:stream.write(json.dumps(event,ensure_ascii=False)+'\n')
+            except OSError as error:self.get_logger().error('写入动作日志失败：'+str(error))
+        text=reason_text(message)
+        if result is not None:
+            states={Result.AUTHORITY_NOT_ACQUIRED:'本次未接管',Result.AUTHORITY_RELEASED:'已归还',
+                    Result.AUTHORITY_RETAINED:'仍持有，需人工处理',Result.AUTHORITY_UNKNOWN:'未确认'}
+            text=f"{ARM_LABELS.get(arm,'未选定')}｜总耗时 {result.elapsed_s:.2f} s｜控制权：{states.get(result.authority_state,'未归还')}"
+            if not result.success:text+=f"｜错误码 {result.code}｜{reason_text(result.message)}"
+        elif not detail:
+            text=f"{ARM_LABELS.get(arm,'未选定')}｜总计 {elapsed:.2f} s"
+            if record.last_logged_stage:text+=f"｜上一阶段 {stage_elapsed:.2f} s"
+            if stage=='VALIDATING':
+                try:direction=json.loads(record.request.parameters_json).get('direction')
+                except (ValueError,AttributeError):direction=None
+                if direction in ('up','down'):text+='｜'+{'up':'上行','down':'下行'}[direction]
+                text+='｜请求 ID：'+record.request.request_id
+        print(console_line(record.request.action_name,record.request.request_id,stage,text),flush=True)
+        if not detail:record.last_stage_at=now;record.last_logged_stage=stage
+
+    def component_notice(self,name,provider,active):
+        reason=provider.dependency_error or ''
+        if '等待连续稳定' in reason:reason='等待连续稳定 RGB-D'
+        key=(bool(provider.ready),reason)
+        state=self.component_notices.setdefault(name,dict(candidate=key,since=time.monotonic(),reported=None))
+        now=time.monotonic()
+        if key!=state['candidate']:state.update(candidate=key,since=now)
+        if active is not None and active.target_locked:return
+        if key!=state['reported'] and now-state['since']>=1.:
+            state['reported']=key
+            print(console_line(name,'','READY' if key[0] else 'NOT_READY',
+                               '可接收任务' if key[0] else reason_text(reason)),flush=True)
 
     def provider(self, record):
         return self.providers.get(record.request.action_name, self.backend)
@@ -285,6 +345,8 @@ class ActionLibraryServer(Node):
                 record.cancel_started = time.monotonic()
             if first:
                 self.provider(record)._stop_impl(Trigger.Request(), Trigger.Response())
+                record.feedback=self.feedback(record,'CANCELLING')
+                self.log(record,'CANCELLING','超过执行时限，等待停止和控制权归还' if deadline else '已请求停止，等待收尾和控制权归还')
             if record.deadline_exceeded:
                 self.provider(record).stop_event.reason = '动作执行超时'
             if record.handle is not None and not record.transport_cancel_sent:
@@ -383,8 +445,9 @@ class ActionLibraryServer(Node):
             status.state = ServerStatus.FAULT if self.fault else ServerStatus.CANCELLING if record and record.cancel_requested else ServerStatus.RUNNING if record else ServerStatus.IDLE
             available = [p.refresh_readiness() for p in self.providers.values()]
             ready = any(available)
+            for name,provider in self.providers.items():self.component_notice(name,provider,record)
             status.accepting_goals = bool(not self.closed and not self.fault and record is None and all(p.worker is None for p in self.providers.values()) and ready)
-            status.message = self.fault or "；".join(name+"："+p.dependency_error for name,p in self.providers.items() if p.dependency_error)
+            status.message = self.fault or (record.feedback.message if record else "；".join(name+"："+p.dependency_error for name,p in self.providers.items() if p.dependency_error))
             if record:
                 status.active_request_id = record.request.request_id
                 status.active_action_name = record.request.action_name

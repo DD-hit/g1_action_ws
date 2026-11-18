@@ -94,6 +94,20 @@ int main(int argc,char** argv) {
         std::cerr<<"INITIAL_COLLISION "<<pair.first.first<<" <-> "<<pair.first.second<<std::endl;
       throw std::runtime_error("Initial state is outside limits or self-colliding");
     }
+    // Production uses the driver's common planner. This mode checks only the
+    // measured full-body start; it must not veto a driver's bounded detour
+    // with this diagnostic's separate PTP-only target solver.
+    if (std::string(argv[6]) == "0") {
+      if (argc != 8 || !full_body)
+        throw std::runtime_error("State-only mode requires a real full-body snapshot");
+      YAML::Node report;
+      report["start_state_valid"] = true;
+      report["start_state"] = start_source;
+      report["hardware_commands_sent"] = false;
+      report["target_planning"] = "driver_common_arm_transit";
+      std::ofstream output(argv[5]); output << report << "\n";
+      rclcpp::shutdown(); return 0;
+    }
     std::ifstream input(argv[4]);if(!input)throw std::runtime_error("No input goals");
     std::vector<YAML::Node> goals;std::string line;
     while(std::getline(input,line))if(!line.empty())goals.push_back(YAML::Load(line));

@@ -9,7 +9,7 @@ case "$action" in
     cat <<'EOF'
 启动后台： bash scripts/g1.sh serve
 执行动作： bash scripts/g1.sh run elevator --direction up|down [--arm auto|left|right]
-           bash scripts/g1.sh run handshake [--arm auto|left|right] [--hold-s 4]
+           bash scripts/g1.sh run handshake [--arm auto|left|right] [--hold-s 2]
 管理任务： bash scripts/g1.sh list | status | stop | get <请求ID>
 关闭后台： bash scripts/g1.sh shutdown
 调试工具： bash scripts/g1.sh debug handshake <live|video|axes|replay|target-preview|preflight|read-state|approach> ...
@@ -57,6 +57,7 @@ EOF
     export ROS_DOMAIN_ID=${G1_ROS_DOMAIN_ID:-${ELE_ROS_DOMAIN_ID:-1}}
     export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
     export PYTHONPATH="${ACTION_WS}/src/g1_actions:${PYTHONPATH:-}"
+    source "${ACTION_WS}/scripts/ros_transport.sh"
     exec python3 -m g1_actions.client "$action" "$@" ;;
   *) echo "用法：bash scripts/g1.sh serve | run <动作> | list | status | stop | get <请求ID>" >&2; exit 2 ;;
 esac

@@ -30,11 +30,13 @@ def metadata(message):
 
 
 class PalmRGBD(Node):
-    def __init__(self, config, package, output, record_rgbd=False):
+    def __init__(self, config, package, output, record_rgbd=False, production=False):
         super().__init__('g1_handshake_rgbd')
         self.cfg, self.output = config, output
         self.camera_verified = bool(config.get('camera_extrinsics', {}).get('verified', False))
         self.record_rgbd = record_rgbd
+        self.artifacts = not production or record_rgbd
+        self.timing_samples = deque(maxlen=256)
         if record_rgbd:
             (output/'frames').mkdir()
         self.perception = config['perception']
@@ -53,14 +55,14 @@ class PalmRGBD(Node):
         self.last_save = 0.
         self.gates = {}
         self.counts = dict(processed_frames=0, detected_frames=0, geometry_frames=0, stable_frames=0)
-        self.file = (output/'observations.jsonl').open('w', buffering=1)
+        self.file = (output/'observations.jsonl').open('w', buffering=1) if self.artifacts else None
         self.status = self.create_publisher(String, '/handshake/perception_status', 1)
         self.palms = self.create_publisher(PalmObservation, '/handshake/palm_observations', 1)
         self.hands = self.create_publisher(HandObservation, '/handshake/hand_observations', 1)
         self.positions = self.create_publisher(PointStamped, '/handshake/palm_positions', 1)
         self.poses = self.create_publisher(PoseArray, '/handshake/palm_poses', 1)
         self.images = self.create_publisher(Image, '/handshake/image_annotated', 1)
-        qos = QoSProfile(depth=3, reliability=ReliabilityPolicy.RELIABLE)
+        qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE)
         self.create_subscription(Image, self.camera['color_topic'], self.colors.append, qos)
         self.create_subscription(Image, self.camera['depth_topic'], self.depths.append, qos)
         self.create_subscription(CameraInfo, self.camera['info_topic'], self.on_info, qos)
@@ -110,6 +112,8 @@ class PalmRGBD(Node):
             self.invalidate(str(error))
 
     def process(self, color, depth):
+        started = time.monotonic()
+        draw = self.artifacts or self.images.get_subscription_count() > 0
         info = self.info
         skew = validate_pair(metadata(color), metadata(depth), metadata(info),
                              self.get_clock().now().nanoseconds*1e-9, self.camera)
@@ -120,7 +124,7 @@ class PalmRGBD(Node):
         elif color.encoding == 'rgba8': frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
         elif color.encoding == 'bgra8': frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
         elif color.encoding != 'bgr8': raise ValueError('Unsupported color format')
-        raw_bgr = frame.copy()
+        raw_bgr = frame.copy() if self.artifacts else frame
         depth_m = image_array(depth)
         if depth.encoding not in ('16UC1', 'mono16', '32FC1'):
             raise ValueError('Aligned depth must be millimetre 16UC1 or metre 32FC1')
@@ -128,7 +132,9 @@ class PalmRGBD(Node):
                          cx=info.k[2], cy=info.k[5], distortion_model=info.distortion_model, d=list(info.d))
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         stamp_ms = color.header.stamp.sec*1000 + color.header.stamp.nanosec//1000000
+        inference_started = time.monotonic()
         hands = self.detector.detect(rgb, stamp_ms)
+        inference_s = time.monotonic()-inference_started
         self.tracker.update(hands, stamp_ms)
         self.counts['processed_frames'] += 1
         self.counts['detected_frames'] += bool(hands)
@@ -175,7 +181,7 @@ class PalmRGBD(Node):
                         point = PointStamped(); point.header = color.header
                         point.point = palm.pose.pose.position
                         self.positions.publish(point)
-                self.draw(frame, metric, intrinsic, identity, stable)
+                if draw:self.draw(frame, metric, intrinsic, identity, stable)
                 if palm.valid: poses.poses.append(palm.pose.pose)
             self.palms.publish(palm)
         active_ids = {hand['palm_frame']['track_id'] for hand in hands}
@@ -187,24 +193,28 @@ class PalmRGBD(Node):
         payload = dict(stamp_s=self.last_stamp, frame_id=color.header.frame_id, intrinsics=intrinsic,
                        rgb_depth_skew_s=skew, palms=observations, hands=hands,
                        inference_delegate=self.detector.delegate, robot_motion_enabled=False)
-        self.file.write(json.dumps(payload, allow_nan=False)+'\n')
+        payload['timing'] = dict(processing_s=time.monotonic()-started,inference_s=inference_s,
+                                 image_age_s=self.get_clock().now().nanoseconds*1e-9-self.last_stamp)
+        self.timing_samples.append(payload['timing'])
+        if self.file is not None:self.file.write(json.dumps(payload, allow_nan=False)+'\n')
         if self.record_rgbd:
             np.savez_compressed(self.output/'frames'/f"{self.counts['processed_frames']:06d}.npz",
                                 color_bgr=raw_bgr, depth_m=depth_m,
                                 metadata=json.dumps(payload, allow_nan=False))
         self.status.publish(String(data=json.dumps({k: v for k, v in payload.items() if k != 'hands'})))
-        image = Image(); image.header = color.header; image.height, image.width = frame.shape[:2]
-        image.encoding = 'bgr8'; image.step = image.width*3; image.data = frame.tobytes(); self.images.publish(image)
+        if draw:
+            image = Image(); image.header = color.header; image.height, image.width = frame.shape[:2]
+            image.encoding = 'bgr8'; image.step = image.width*3; image.data = frame.tobytes(); self.images.publish(image)
         if not hands:
             self.gates.clear()
             palm = PalmObservation(); palm.header = color.header; palm.valid = False
             palm.message = 'No hand detected'; self.palms.publish(palm)
         if time.monotonic()-self.last_save > 1.:
             self.last_save = time.monotonic()
-            cv2.imwrite(str(self.output/'latest.jpg'), frame)
-            np.savez_compressed(self.output/'rgbd_latest.npz', color_bgr=raw_bgr, depth_m=depth_m,
+            if self.artifacts:cv2.imwrite(str(self.output/'latest.jpg'), frame)
+            if self.artifacts:np.savez_compressed(self.output/'rgbd_latest.npz', color_bgr=raw_bgr, depth_m=depth_m,
                                 metadata=json.dumps(payload, allow_nan=False))
-            if stable:
+            if stable and self.artifacts:
                 cv2.imwrite(str(self.output/'valid.jpg'), frame)
                 np.savez_compressed(self.output/'rgbd_valid.npz', color_bgr=raw_bgr, depth_m=depth_m,
                                     metadata=json.dumps(payload, allow_nan=False))
@@ -256,11 +266,13 @@ class PalmRGBD(Node):
         cv2.putText(image, text, (5, int(y)), cv2.FONT_HERSHEY_SIMPLEX, .45, (255, 255, 255), 1)
 
     def close(self):
-        self.detector.close(); self.file.close()
+        self.detector.close()
+        if self.file is not None:self.file.close()
         (self.output/'summary.json').write_text(json.dumps(dict(self.counts,
             output_frame='RGB optical frame', robot_extrinsics_verified=self.camera_verified,
             robot_motion_enabled=False, recorded_rgbd_sequence=self.record_rgbd,
-            inference_delegate=self.detector.delegate), indent=2)+'\n')
+            inference_delegate=self.detector.delegate, production_artifacts_disabled=not self.artifacts,
+            timing_samples=list(self.timing_samples)), indent=2)+'\n')
 
 
 def main():
@@ -269,6 +281,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--duration', type=float, default=0, help='Seconds; zero means until Ctrl+C')
     parser.add_argument('--output', type=Path)
+    parser.add_argument('--production', action='store_true',help='No synchronous diagnostic image/archive writes; annotation only for subscribers')
     parser.add_argument('--record-rgbd', action='store_true',
                         help='Save synchronized RGB, depth, calibration and landmarks for every processed frame')
     parser.add_argument('--config', type=Path, default=package/'config/handshake.yaml')
@@ -280,7 +293,7 @@ def main():
     node = None
     deadline = time.monotonic()+args.duration if args.duration > 0 else float('inf')
     try:
-        node = PalmRGBD(config, package, output, args.record_rgbd)
+        node = PalmRGBD(config, package, output, args.record_rgbd, production=args.production)
         while rclpy.ok() and time.monotonic() < deadline: rclpy.spin_once(node, timeout_sec=.1)
     except KeyboardInterrupt:
         pass

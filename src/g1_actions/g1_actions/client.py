@@ -18,14 +18,7 @@ from g1_action_interfaces.action import Execute
 from g1_action_interfaces.msg import ExecutionGoal, ExecutionResult as Result, ServerStatus
 from g1_action_interfaces.srv import ListActions, GetExecution, StopActive
 
-STAGE_LABELS = {
-    'VALIDATING': '准备任务', 'WAITING_TARGET': '获取稳定目标', 'PLANNING': '规划轨迹',
-    'ACQUIRING_AUTHORITY': '接管控制权', 'APPROACHING': '到预备点',
-    'RETURNING': '返回初始位姿', 'PRESSING': '直线按压', 'CONTACT_HOLD': '接触保持', 'WITHDRAWING': '沿原轨迹撤回',
-    'RELEASING_AUTHORITY': '归还控制权', 'FINALIZING': '任务收尾',
-    'CANCELLING': '停止中', 'RECOVERING': '异常收尾', 'READY': '就绪',
-    'NOT_READY': '未就绪', 'FAULT': '需要人工检查',
-}
+from .console import STAGE_LABELS
 
 
 def format_result(result):
@@ -96,7 +89,7 @@ class Client:
             raise ValueError('--parameters 不能与握手快捷参数混用')
         params = args.parameters if args.parameters is not None else json.dumps({'direction': args.direction or 'up'} if args.action_name == 'elevator' else {})
         if args.action_name == 'handshake' and args.parameters is None:
-            params = json.dumps(dict(hold_s=4. if args.hold_s is None else args.hold_s,
+            params = json.dumps(dict(hold_s=2. if args.hold_s is None else args.hold_s,
                                      subject_handedness=args.subject_handedness or 'any'))
         identifier = args.request_id or str(uuid.uuid4())
         goal = Execute.Goal(request=ExecutionGoal(request_id=identifier,
@@ -170,7 +163,7 @@ class Client:
                 if status.message:
                     print('说明：' + status.message)
                 if status.last_result_valid:
-                    print('最近结果：\n' + format_result(status.last_result))
+                    print('上次任务结果（历史记录）：\n' + format_result(status.last_result))
             return 0
         if args.command == 'stop':
             response = self.invoke(StopActive, '/g1_actions/stop_active', StopActive.Request(request_id=args.request_id or ''))

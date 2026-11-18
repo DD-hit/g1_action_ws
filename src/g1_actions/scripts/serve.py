@@ -18,9 +18,14 @@ from g1_actions.actions.handshake.provider import HandshakeProvider
 from g1_actions.actions.elevator.config import load
 from g1_actions.actions.elevator.service_node import TaskService
 from g1_actions.server import ActionLibraryServer
+from g1_actions.console import line as console_line
 from g1_actions.driver_runtime import verify_driver_runtime, existing_driver_processes
 from managed_service import stop_owned_perception
 from camera_recovery import CameraRecovery,startup_components
+
+
+def server_log(stage,message):
+    print(console_line('服务','',stage,message),flush=True)
 
 
 def main():
@@ -61,7 +66,7 @@ def main():
         if command not in log_files:
             log_files[command]=(output/(command+'.log')).open('a');logs.append(log_files[command])
         log=log_files[command]
-        argv=(['bash',str(root.parents[1]/'scripts/handshake_live.sh'),'--duration','0',
+        argv=(['bash',str(root.parents[1]/'scripts/handshake_live.sh'),'--duration','0','--production',
                '--output',str(output/'handshake_rgbd')] if command=='handshake_vision' else
               ['bash',str(root/'scripts/ele.sh'),command])
         if command=='driver':argv.append('real')
@@ -87,10 +92,10 @@ def main():
         initial=startup_components(camera_present,vision_present)
         for component in initial:start(component)
         if not node.count_publishers('/handshake/perception_status'):start('handshake_vision')
-        print('启动时仅补齐缺失组件：'+(', '.join(initial) if initial else '复用已有相机和视觉')+'；持续断流时才恢复重启。',flush=True)
-        print('正在初始化公共驱动、相机、电梯识别和握手识别；各动作就绪状态见 g1.sh list。',flush=True)
-        print('日志：'+str(output),flush=True)
-        print('统一动作库：run elevator --direction up/down | run handshake --arm auto；stop 停止动作；shutdown 关闭后台。',flush=True)
+        server_log('启动','缺失组件已启动：'+(', '.join(initial) if initial else '无，复用已有相机和视觉'))
+        server_log('初始化','等待驱动、相机及识别就绪；查询：bash scripts/g1.sh list')
+        server_log('日志',str(output))
+        server_log('接口','run elevator --direction up/down | run handshake --arm auto；stop 停止动作；shutdown 关闭后台')
         while not stopping[0] and rclpy.ok():
             executor.spin_once(timeout_sec=.1)
             for name,child in children:
@@ -108,7 +113,7 @@ def main():
             if action=='stopping':
                 node.perception_recovering=True
                 node.vision_gate.invalidate('相机正在自动恢复，等待连续稳定 RGB-D')
-                print(f'相机自动恢复：第 {recovery.attempts} 次，停止所属相机/视觉进程。',flush=True)
+                server_log('相机恢复',f'第 {recovery.attempts} 次：停止所属相机和视觉进程')
             elif action=='start':
                 children[:]=[(name,child) for name,child in children if name in ('driver','handshake_vision')]
                 node.vision_health={}
@@ -116,10 +121,10 @@ def main():
                 node.vision_gate.invalidate('相机已重启，等待连续稳定 RGB-D')
                 start('perception')
                 node.perception_recovering=False
-                print('相机自动恢复：已重启相机和视觉，等待连续稳定出图。',flush=True)
+                server_log('相机恢复','已重启，等待连续稳定 RGB-D')
             elif action=='failed':
                 node.perception_recovering=False
-                print('相机自动恢复失败：'+str(recovery.error)+'；稍后重试。',flush=True)
+                server_log('相机恢复失败',str(recovery.error)+'；稍后重试')
             node.camera_recovery_status={'attempts':recovery.attempts,'restarting':recovery.active,
                                          'last_error':recovery.error}
     finally:

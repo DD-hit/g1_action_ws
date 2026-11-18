@@ -125,6 +125,13 @@ pipelines:
     - 28
   moveit:
     enable: true
+    # Shared arm transit: fixed IK/PTP, then bounded OMPL to the fixed goal.
+    arm_transit_planner: ptp_first
+    arm_max_joint_path_ratio: 1.8
+    arm_max_joint_path_extra: 0.5
+    # Non-panel MovePJ execution must match a successful plan_only request.
+    arm_transit_require_preplan: true
+    arm_transit_use_elevator_timing: true
     # Elevator approach/return only: rrtconnect (default) or ptp. Restart driver after changes.
     elevator_transit_planner: ptp_first
     elevator_max_joint_path_ratio: 1.8

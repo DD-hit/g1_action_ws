@@ -8,6 +8,7 @@ import time
 import numpy as np
 import rclpy
 from rclpy.node import Node
+from rclpy.executors import SingleThreadedExecutor
 from rclpy.signals import SignalHandlerOptions
 from std_msgs.msg import String
 from std_srvs.srv import Trigger
@@ -79,6 +80,7 @@ class PressTask(Node):
         record = {'stage': stage, 'direction': self.direction, 'arm': self.arm,
                   'stamp_sec': self.get_clock().now().nanoseconds*1e-9, **extra}
         self.events.publish(String(data=json.dumps(record)))
+        if getattr(self,'quiet_console',False):return
         if stage == 'PREVIEW':
             direction = {'up':'上行', 'down':'下行'}.get(self.direction, self.direction)
             arm = {'left':'左手', 'right':'右手'}.get(self.arm, self.arm)
@@ -106,10 +108,29 @@ class PressTask(Node):
             if stage in labels and stage not in quiet:
                 print(log_line('阶段',labels[stage]),flush=True)
 
+    def spin_once(self, timeout_sec=.04):
+        # Keep this worker registered across callbacks. rclpy.spin_once(node)
+        # adds/removes it on every call, which can starve later subscriptions
+        # when the arm-status topic is continuously ready at 600 Hz.
+        executor = getattr(self, '_task_executor', None)
+        if executor is None:
+            executor = self._task_executor = SingleThreadedExecutor(context=self.context)
+        if self.executor is not executor:
+            executor.add_node(self)
+        executor.spin_once(timeout_sec=timeout_sec)
+
+    def destroy_node(self):
+        executor = getattr(self, '_task_executor', None)
+        if executor is not None:
+            executor.remove_node(self)
+            executor.shutdown()
+            self._task_executor = None
+        return super().destroy_node()
+
     def wait(self, predicate, timeout, label):
         deadline = time.monotonic()+timeout
         while time.monotonic() < deadline and rclpy.ok():
-            rclpy.spin_once(self, timeout_sec=.04)
+            self.spin_once( timeout_sec=.04)
             if predicate():
                 return
         raise RuntimeError('Timed out: '+label)
@@ -273,7 +294,7 @@ class PressTask(Node):
             planning_deadline=command_sent+float(self.cfg['motion'].get('planning_timeout_s',8.))
             deadline = command_sent+self.cfg['motion']['command_timeout_s']
             while time.monotonic()<deadline and rclpy.ok():
-                rclpy.spin_once(self,timeout_sec=.04)
+                self.spin_once(timeout_sec=.04)
                 feedback=self.motion_feedback.get(key,{})
                 if feedback.get('phase')=='rejected':
                     # A correlated rejection proves PRESS was never submitted.
@@ -359,7 +380,7 @@ class PressTask(Node):
             observed = False
             sent = time.monotonic()
             while time.monotonic()-sent < self.cfg['motion']['command_timeout_s']:
-                rclpy.spin_once(self, timeout_sec=.04)
+                self.spin_once( timeout_sec=.04)
                 self.health(moving=True)
                 if self.status_sequence <= seq:
                     continue
@@ -383,7 +404,7 @@ class PressTask(Node):
             msg.arm_mask, msg.cancel, msg.enable = 3, True, False
             pub.publish(msg)
             for _ in range(5):
-                rclpy.spin_once(self,timeout_sec=.05)
+                self.spin_once(timeout_sec=.05)
         finally:
             self.destroy_publisher(pub)
 
@@ -445,7 +466,7 @@ class PressTask(Node):
         self.event('MOTION_ACCEPTED',motion_stage=stage,trajectory_retrace=True)
         started=time.monotonic()
         while time.monotonic()-started<self.cfg['motion']['command_timeout_s']:
-            rclpy.spin_once(self,timeout_sec=.04)
+            self.spin_once(timeout_sec=.04)
             self.health(moving=True)
             current=getattr(self.status.current_joint,self.arm+'_positions')
             if (self.status_sequence>seq and time.monotonic()-started>.25 and
@@ -476,7 +497,15 @@ class PressTask(Node):
 
     def check_execution_ready(self):
         verify_driver_runtime(self.cfg['motion'])
-        self.wait(lambda: self.status is not None and self.waist is not None,5,'driver feedback')
+        # Process attestation can outlast the freshness window while this
+        # worker is not spinning. Require both subscriptions to advance after
+        # it completes; cached non-None messages are not a readiness barrier.
+        checked_at = time.monotonic()
+        self.wait(lambda: self.status is not None and self.waist is not None
+                  and self.status_arrival >= checked_at and self.waist_arrival >= checked_at
+                  and time.monotonic()-self.status_arrival <= .6
+                  and time.monotonic()-self.waist_arrival <= .6,
+                  5,'fresh arm and waist feedback after driver verification')
         self.health()
         if self.status.current_state == DualArmStatus.MOVING:
             raise RuntimeError('Robot is already moving')
@@ -519,7 +548,7 @@ class PressTask(Node):
             if now-last_report>=5. or last_report==0.:
                 self.event('WAITING_TARGET',reason=reason,remaining_s=max(0.,deadline-now))
                 last_report=now
-            rclpy.spin_once(self,timeout_sec=.04)
+            self.spin_once(timeout_sec=.04)
         raise RuntimeError('Timed out waiting for a fresh target snapshot: '+reason)
 
     def contact_remaining(self):
@@ -583,10 +612,10 @@ class PressTask(Node):
                        wrist_target=poses['approach'])
             until = time.monotonic()+3.
             while time.monotonic()<until:
-                rclpy.spin_once(self,timeout_sec=.04)
+                self.spin_once(timeout_sec=.04)
                 self.health(moving=True)
             self.configure_panel(target, 'return')
-            self.move(initial_pose,False,'HOVER_RETURN')
+            self.move(self.initial_pose,False,'HOVER_RETURN')
             self.event('HOVER_COMPLETED',contact_attempted=False,calibration_verified=False,
                        nominal_min_hand_clearance_m=self.hover_guard.minimum_seen)
             return
@@ -601,7 +630,7 @@ class PressTask(Node):
         self.event('DWELL',remaining_contact_s=remaining)
         until = time.monotonic()+remaining
         while time.monotonic()<until:
-            rclpy.spin_once(self,timeout_sec=.04)
+            self.spin_once(timeout_sec=.04)
             self.health(moving=True)
         self.withdraw_contact('WITHDRAW')
         self.finish_withdrawal()

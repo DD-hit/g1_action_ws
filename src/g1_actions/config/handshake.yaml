@@ -15,7 +15,7 @@ perception:
   max_processing_fps: 30.0
   palm_frame:
     enabled: true
-    confirm_frames: 5
+    confirm_frames: 3  # At 6 FPS, confirm handedness alongside the 3-frame position gate.
     side_consensus: 0.8
     min_handedness_score: 0.6
     normal_sign_by_label: {Right: 1, Left: -1}
@@ -105,15 +105,18 @@ execution:
     left: {palm_xyz_m: [0.30, 0.20, 0.10]}
     right: {palm_xyz_m: [0.30, -0.20, 0.10]}
   precontact_distance_m: 0.0  # Align rubber-palm center directly with estimated human palm
-  hold_s: 4.0
+  target_wait_s: 0.9  # Includes setup; reserve 0.1 s for returning failure within 1 s.
+  hold_s: 2.0
+  speed: 0.45  # Same request scales as elevator APPROACH, both approach and return.
+  acceleration: 0.35
   orientation_mode: fixed
   fixed_orientation:
     frame_id: torso_link
-    finger_downward_deg: 45.0
+    finger_downward_deg: -20.0  # Signed pitch: positive downward, negative upward.
     source: urdf_nominal
     verified: false  # Nominal model only; actual installation and IK not verified
     left_end_effector_link: left_wrist_yaw_link
     right_end_effector_link: right_wrist_yaw_link
     # The rubber-hand models are mirrored; their wrist rotations are identical.
-    left_quaternion_xyzw: [0.0, 0.3826834323650898, 0.0, 0.9238795325112867]
-    right_quaternion_xyzw: [0.0, 0.3826834323650898, 0.0, 0.9238795325112867]
+    left_quaternion_xyzw: [0.0, -0.17364817766693033, 0.0, 0.984807753012208]
+    right_quaternion_xyzw: [0.0, -0.17364817766693033, 0.0, 0.984807753012208]

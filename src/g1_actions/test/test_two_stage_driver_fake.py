@@ -140,7 +140,9 @@ with tempfile.TemporaryDirectory(prefix='two_stage_fake_') as temp:
             report['selected_arm_preserved_in_all_commands']=True
             report['ompl_transit_planner_used']=used_ompl
             report['transit_planner']='PilzPTP' if 'planner=PilzPTP fixed_joint_goal=true' in text else 'AnytimePathShortening' if 'planner=AnytimePathShortening fixed_joint_goal=true' in text else 'legacy'
-            assert '[RecordedRetraceValidated]' in text and '[RecordedRetraceAccepted]' in text
+            assert '[RecordedRetraceAccepted]' in text
+            assert any('[MotionAccepted]' in line and 'source=recorded_linear_retrace' in line
+                       for line in text.splitlines())
             report['withdrawal_reuses_recorded_trajectory_without_replanning']=True
             report['forward_trajectories_prechecked']=True
             count=text.count('[PilzPlan] stage=request algorithm=LIN')

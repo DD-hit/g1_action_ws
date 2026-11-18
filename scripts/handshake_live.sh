@@ -14,4 +14,5 @@ set -u
 export PYTHONPATH="${ROOT}/src/g1_actions:${PYTHONPATH:-}"
 export ROS_DOMAIN_ID=${ELE_ROS_DOMAIN_ID:-1}
 export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+source "${ROOT}/scripts/ros_transport.sh"
 exec "${ROOT}/.venv/bin/python" -m g1_actions.perception.rgbd_live "$@"

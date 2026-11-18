@@ -41,7 +41,7 @@ class ManagedPressTask(PressTask):
         until=time.monotonic()+timeout
         while time.monotonic()<until and rclpy.ok():
             self.check_stop()
-            rclpy.spin_once(self,timeout_sec=.04)
+            self.spin_once(timeout_sec=.04)
             if predicate():return
         raise RuntimeError('Timed out: '+label)
 
@@ -176,9 +176,9 @@ class TaskService(Node):
             if ready:
                 if self.worker is None:
                     self.stage='READY'
-                    print('电梯已就绪：RGB-D 已连续稳定；使用 g1.sh run elevator --direction up/down。',flush=True)
+                    if not getattr(self,'console_managed',False):print('电梯已就绪：RGB-D 已连续稳定；使用 g1.sh run elevator --direction up/down。',flush=True)
             else:
-                print('电梯未就绪：'+self.dependency_error,flush=True)
+                if not getattr(self,'console_managed',False):print('电梯未就绪：'+self.dependency_error,flush=True)
                 if self.worker is None:
                     self.stage='RECOVERY_REQUIRED' if self.last_result and self.last_result.get('authority_retained') else 'NOT_READY'
                 else:
@@ -274,6 +274,7 @@ class TaskService(Node):
         task=None;result={'direction':direction,'arm':arm}
         try:
             task=self.task_factory(copy.deepcopy(self.cfg),direction,arm,stop_event)
+            task.quiet_console=getattr(self,'console_managed',False)
             with self.lock:self.task=task
             original=task.event
             def event(stage,**extra):
@@ -305,7 +306,7 @@ class TaskService(Node):
                 owned=bool(task.acquired)
                 if task.acquired:
                     try:
-                        print(log_line('5/5','归还控制权'),flush=True)
+                        if not getattr(self,'console_managed',False):print(log_line('5/5','归还控制权'),flush=True)
                         task.trigger('/dual_arm/end')
                         task.acquired=False
                         result.update(authority_released=True,authority_retained=False)
@@ -336,7 +337,7 @@ class TaskService(Node):
             result['authority_acquired']=owned
             result['elapsed_s']=round(time.monotonic()-started,3)
             self.record(None,'TASK_FINISHED',result=result)
-            print(log_line('结果',format_result(result)),flush=True)
+            if not getattr(self,'console_managed',False):print(log_line('结果',format_result(result)),flush=True)
             with self.lock:
                 self.last_result=result;self.task=None;self.worker=None
                 if result.get('authority_retained'):

@@ -19,7 +19,7 @@ class RetraceWithdrawalTests(unittest.TestCase):
     def test_withdrawal_calls_retrace_and_confirms_fresh_measured_endpoint(self):
         task=self.fixture();now=[0.]
         def spin(*args,**kwargs):now[0]+=.15;task.status_sequence+=1
-        with patch('g1_actions.actions.elevator.task_node.time.monotonic',side_effect=lambda:now[0]),patch('g1_actions.actions.elevator.task_node.rclpy.spin_once',side_effect=spin):
+        with patch('g1_actions.actions.elevator.task_node.time.monotonic',side_effect=lambda:now[0]),patch.object(task,'spin_once',side_effect=spin,create=True):
             PressTask.withdraw_contact(task)
         task.trigger.assert_called_once_with('/dual_arm/retrace_right')
         task.move.assert_not_called();task.verify_withdrawal.assert_called_once()

@@ -56,8 +56,10 @@ class TaskServiceTests(unittest.TestCase):
         tree=ast.parse((Path(__file__).resolve().parents[1]/'scripts/serve.py').read_text())
         main=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='main')
         cleanup=next(n for n in main.body if isinstance(n,ast.Try) and n.finalbody)
-        retry=next(n for n in cleanup.finalbody if isinstance(n,ast.While))
-        assignments=[n for n in cleanup.finalbody if isinstance(n,ast.Assign)]
+        retry=next(n for n in cleanup.finalbody if isinstance(n,ast.While)
+                   and isinstance(n.test,ast.Constant) and n.test.value is True)
+        assignments=[n for n in cleanup.finalbody if isinstance(n,ast.Assign)
+                     and all(isinstance(target,ast.Name) for target in n.targets)]
         clock=[0.];calls=[]
         def close():
             calls.append('close')

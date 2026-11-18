@@ -11,7 +11,7 @@ STAGES = {
     'STARTING': 'VALIDATING', 'WAITING_TARGET': 'WAITING_TARGET',
     'ACQUIRE_AUTHORITY': 'ACQUIRING_AUTHORITY', 'APPROACH': 'APPROACHING',
     'RETURN': 'RETURNING', 'approach': 'APPROACHING', 'hold': 'CONTACT_HOLD',
-    'return': 'RETURNING', 'read_state': 'PLANNING', 'preflight': 'PLANNING', 'waiting_target': 'WAITING_TARGET', 'acquire_authority': 'ACQUIRING_AUTHORITY',
+    'return': 'RETURNING', 'read_state': 'PLANNING', 'preflight': 'PLANNING', 'return_planning': 'PLANNING', 'waiting_target': 'WAITING_TARGET', 'acquire_authority': 'ACQUIRING_AUTHORITY',
     'PRESS': 'PRESSING', 'DWELL': 'CONTACT_HOLD', 'WITHDRAW': 'WITHDRAWING',
     'RECOVERY_WITHDRAW': 'RECOVERING', 'RECOVERY_RETURN': 'RECOVERING',
     'STOPPING': 'CANCELLING', 'READY_TO_RELEASE': 'RELEASING_AUTHORITY',
@@ -71,7 +71,7 @@ def validate(request):
             if set(params) - {'subject_handedness', 'hold_s'}:
                 raise ValueError('握手参数包含未知字段')
             params.setdefault('subject_handedness', 'any')
-            params.setdefault('hold_s', 4.)
+            params.setdefault('hold_s', 2.)
             hold = params['hold_s']
             if params['subject_handedness'] not in ('any', 'left', 'right'):
                 raise ValueError('subject_handedness 必须为 any/left/right')
@@ -95,6 +95,8 @@ def make_result(request, code, message, elapsed=0.):
 def failure_code(raw):
     reason = str(raw.get('reason', ''))
     lower = reason.lower()
+    if 'PREPARED_PLAN_INVALID:' in reason:
+        return Result.TARGET_INVALID
     if raw.get('target_rejected'):
         return Result.PLANNING_FAILED
     if raw.get('failed_stage') == 'waiting_target':
